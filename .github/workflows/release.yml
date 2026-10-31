@@ -85,7 +85,8 @@ jobs:
 
       - name: SHA-256 per file
         working-directory: dist
-        run: for f in *.exe; do sha256sum "$f" > "$f.sha256"; cat "$f.sha256"; done
+        # sha256sum on Windows writes " *name" (binary mode); keep the plain "<hash>  <name>" form
+        run: for f in *.exe; do echo "$(sha256sum "$f" | cut -d' ' -f1)  $f" > "$f.sha256"; cat "$f.sha256"; done
 
       - uses: actions/upload-artifact@v4
         with:

@@ -78,6 +78,11 @@ describe('parseReleases', () => {
     expect(r.assetName).toBe('');
   });
 
+  it('finds the hash on a sha256sum line in binary mode (" *name", as on Windows)', () => {
+    const [r] = parseReleases([release('v4.0.0', { body: `\`${HASH_SETUP}\`  *App-4.0.0-setup.exe`, assets: ['App-4.0.0-setup.exe'] })], '-setup.exe');
+    expect(r.assetSha256).toBe(HASH_SETUP);
+  });
+
   it('reads a sha256sum line', () => {
     expect(parseSha256File(`${HASH_SETUP.toUpperCase()}  file.exe\n`)).toBe(HASH_SETUP);
     expect(parseSha256File('nope')).toBeNull();
