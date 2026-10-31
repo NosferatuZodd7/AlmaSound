@@ -1,7 +1,7 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme } from 'electron';
 import { join } from 'node:path';
 import { createI18n, LOCALES, resolveLanguage } from '../src/i18n/locales';
-import { CHANNELS, type ConfirmOptions } from './ipc';
+import { CHANNELS, THEMES, type ConfirmOptions, type Theme } from './ipc';
 import { buildMenu } from './menu';
 import { loadSettings, saveSettings } from './settings';
 
@@ -9,6 +9,7 @@ const isDev = !app.isPackaged && !!process.env.ELECTRON_RENDERER_URL;
 // Lets automated tests run with fresh settings without touching the real profile.
 if (process.env.ALMASOUND_USER_DATA) app.setPath('userData', process.env.ALMASOUND_USER_DATA);
 let settings = loadSettings();
+nativeTheme.themeSource = settings.theme;
 const currentLanguage = () => resolveLanguage(settings.language ?? app.getLocale());
 
 function createWindow(): BrowserWindow {
@@ -18,7 +19,7 @@ function createWindow(): BrowserWindow {
     height: 800,
     minWidth: 720,
     minHeight: 480,
-    backgroundColor: '#061a5e',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0d0f1a' : '#eef1f8',
     title: i18n.t('app.title'),
     show: false,
     webPreferences: {
@@ -44,6 +45,13 @@ ipcMain.handle(CHANNELS.setLanguage, (event, language: unknown) => {
   saveSettings(settings);
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win) Menu.setApplicationMenu(buildMenu(createI18n(language).t, win, isDev));
+});
+
+ipcMain.handle(CHANNELS.setTheme, (_event, theme: unknown) => {
+  if (!THEMES.includes(theme as Theme)) return;
+  settings = { ...settings, theme: theme as Theme };
+  saveSettings(settings);
+  nativeTheme.themeSource = settings.theme;
 });
 
 ipcMain.handle(CHANNELS.confirm, async (event, o: ConfirmOptions) => {
