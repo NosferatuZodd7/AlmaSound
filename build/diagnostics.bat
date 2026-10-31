@@ -19,7 +19,7 @@ if exist "%EXE%" (>> "%OUT%" echo AlmaSound.exe: present in %HERE%) else (>> "%O
 
 >> "%OUT%" echo.
 >> "%OUT%" echo == The app's own report (software rendering) ==
-"%EXE%" --software --print-diagnostics >> "%OUT%" 2>&1
+"%EXE%" --software --print-diagnostics="%OUT%"
 >> "%OUT%" echo Exit code: %ERRORLEVEL%
 
 if /i "%~1"=="/nogui" goto logs

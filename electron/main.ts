@@ -1,5 +1,5 @@
 import { app, BrowserWindow, clipboard, crashReporter, dialog, ipcMain, Menu, nativeTheme } from 'electron';
-import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createI18n, LOCALES, resolveLanguage } from '../src/i18n/locales';
@@ -12,7 +12,11 @@ import { loadSettings, saveSettings, settingsFile } from './settings';
 import { Updater } from './updater';
 
 const isDev = !app.isPackaged && !!process.env.ELECTRON_RENDERER_URL;
-const printDiagnostics = process.argv.includes('--print-diagnostics');
+// --print-diagnostics prints the report to stdout; --print-diagnostics=<file> appends it to a file,
+// which also works for Windows GUI builds, whose stdout is often not connected.
+const printArg = process.argv.find((a) => a === '--print-diagnostics' || a.startsWith('--print-diagnostics='));
+const printDiagnostics = printArg !== undefined;
+const printTo = printArg?.includes('=') ? printArg.slice(printArg.indexOf('=') + 1) : null;
 // Lets automated tests run with fresh settings without touching the real profile.
 if (process.env.ALMASOUND_USER_DATA) app.setPath('userData', process.env.ALMASOUND_USER_DATA);
 
@@ -237,7 +241,18 @@ app.whenReady().then(() => {
   log.info('Startup: Electron ready');
   if (printDiagnostics) {
     // Headless report (used by diagnostics.bat when the window cannot open).
-    process.stdout.write(buildReport(diagnostics, null), () => app.exit(0));
+    const report = buildReport(diagnostics, null);
+    if (!printTo) {
+      process.stdout.write(report, () => app.exit(0));
+      return;
+    }
+    try {
+      appendFileSync(printTo, report);
+      app.exit(0);
+    } catch (e) {
+      log.error(`Diagnostics: could not write ${printTo}: ${String(e)}`);
+      app.exit(1);
+    }
     return;
   }
   createWindow();

@@ -98,7 +98,7 @@ environment — collected automatically and safe to paste in public.
   (`AlmaSound-diagnostics-YYYY-MM-DD-HHMMSS.txt`); the log path in the footer.
 - **Report:** versions (app, Electron, Chromium, OS, rendering, GPU), network interfaces, audio facts (context
   state, sample rate, latencies, output devices, transport), updates, settings, last attempts, files, the last
-  log lines, and `-- end of diagnostics --`. Headless: `AlmaSound.exe --print-diagnostics`.
+  log lines, and `-- end of diagnostics --`. Headless: `--print-diagnostics` (stdout) or `--print-diagnostics=<file>` (appends to a file; use this on Windows, where the GUI exe has no stdout).
 - **When the app does not even open:** run `diagnostics.bat` (next to `AlmaSound.exe`, also in the Start menu).
   It writes `diagnostics.txt` with the app's report in software mode, the app run in compatibility mode, the
   log tail and recent crashes from the Windows Application log. CI runs it on every Windows build.
