@@ -1,0 +1,69 @@
+{
+  "_meta": { "name": "Português (Portugal)" },
+  "app": { "title": "AlmaSound" },
+  "progression": {
+    "label": "Progressão",
+    "help": "Acordes separados por espaços. Junta :N para N tempos (por defeito 4), ex.: Am Dm7 G7:2 C/G:2",
+    "invalid": "Não reconheci: {{tokens}}. Experimenta, por exemplo, C, Am, G7, Cmaj7, Bm7b5, Esus4, C/G.",
+    "empty": "Escreve pelo menos um acorde, por exemplo: C G Am F"
+  },
+  "transport": {
+    "play": "Tocar",
+    "pause": "Pausa",
+    "restart": "Voltar ao início",
+    "bpm": "BPM",
+    "position": "Posição",
+    "zoomIn": "Aproximar",
+    "zoomOut": "Afastar",
+    "zoom": "Zoom {{value}}"
+  },
+  "stage": {
+    "label": "Linhas das vozes da progressão de acordes. Arrasta uma linha para cima ou para baixo para mudar essa nota.",
+    "hint": "Arrasta uma linha para mudar uma nota · Arrasta o fundo ou usa a roda do rato para andar no tempo · Ctrl+roda para zoom · Clica num acorde para o ouvir",
+    "edited": "Editado à mão"
+  },
+  "shortcuts": {
+    "title": "Atalhos",
+    "playPause": "Tocar / pausa",
+    "restart": "Voltar ao início",
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "zoom": "Zoom",
+    "settings": "Definições"
+  },
+  "settings": {
+    "open": "Definições",
+    "title": "Definições",
+    "language": "Idioma",
+    "close": "Fechar"
+  },
+  "dialog": {
+    "discardEdits": {
+      "message": "Gerar as vozes de novo?",
+      "detail": "Mudar a progressão cria vozes novas e apaga as notas que editaste à mão. Podes desfazer com Ctrl+Z.",
+      "confirm": "Gerar de novo",
+      "cancel": "Manter as edições"
+    }
+  },
+  "menu": {
+    "file": "Ficheiro",
+    "settings": "Definições…",
+    "quit": "Sair",
+    "edit": "Editar",
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "cut": "Cortar",
+    "copy": "Copiar",
+    "paste": "Colar",
+    "selectAll": "Selecionar tudo",
+    "view": "Ver",
+    "zoomIn": "Aproximar (tempo)",
+    "zoomOut": "Afastar (tempo)",
+    "zoomReset": "Repor zoom",
+    "fullscreen": "Ecrã inteiro",
+    "devTools": "Ferramentas de programador",
+    "playback": "Reprodução",
+    "playPause": "Tocar / pausa",
+    "restart": "Voltar ao início"
+  }
+}

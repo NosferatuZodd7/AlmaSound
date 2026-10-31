@@ -1,0 +1,69 @@
+{
+  "_meta": { "name": "English" },
+  "app": { "title": "AlmaSound" },
+  "progression": {
+    "label": "Progression",
+    "help": "Chords separated by spaces. Add :N for N beats (default 4), e.g. Am Dm7 G7:2 C/G:2",
+    "invalid": "Not recognised: {{tokens}}. Try for example C, Am, G7, Cmaj7, Bm7b5, Esus4, C/G.",
+    "empty": "Type at least one chord, for example: C G Am F"
+  },
+  "transport": {
+    "play": "Play",
+    "pause": "Pause",
+    "restart": "Back to start",
+    "bpm": "BPM",
+    "position": "Position",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoom": "Zoom {{value}}"
+  },
+  "stage": {
+    "label": "Voice lines of the chord progression. Drag a line up or down to change that note.",
+    "hint": "Drag a line to change a note · Drag the background or use the wheel to move in time · Ctrl+wheel to zoom · Click a chord to hear it",
+    "edited": "Edited by hand"
+  },
+  "shortcuts": {
+    "title": "Shortcuts",
+    "playPause": "Play / pause",
+    "restart": "Back to start",
+    "undo": "Undo",
+    "redo": "Redo",
+    "zoom": "Zoom",
+    "settings": "Settings"
+  },
+  "settings": {
+    "open": "Settings",
+    "title": "Settings",
+    "language": "Language",
+    "close": "Close"
+  },
+  "dialog": {
+    "discardEdits": {
+      "message": "Regenerate the voices?",
+      "detail": "Changing the progression creates new voices and discards the notes you edited by hand. You can undo this with Ctrl+Z.",
+      "confirm": "Regenerate",
+      "cancel": "Keep my edits"
+    }
+  },
+  "menu": {
+    "file": "File",
+    "settings": "Settings…",
+    "quit": "Quit",
+    "edit": "Edit",
+    "undo": "Undo",
+    "redo": "Redo",
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "selectAll": "Select all",
+    "view": "View",
+    "zoomIn": "Zoom in (time)",
+    "zoomOut": "Zoom out (time)",
+    "zoomReset": "Reset zoom",
+    "fullscreen": "Toggle full screen",
+    "devTools": "Developer tools",
+    "playback": "Playback",
+    "playPause": "Play / pause",
+    "restart": "Back to start"
+  }
+}
