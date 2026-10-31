@@ -14,6 +14,9 @@ win:
     - target: portable
       arch: [x64]
   icon: build/icon.ico
+  extraFiles:
+    - from: build/diagnostics.bat
+      to: diagnostics.bat
 nsis:
   oneClick: false
   perMachine: false

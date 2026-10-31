@@ -72,6 +72,40 @@ Settings → Updates (also Help → Check for updates…):
 - Not done yet (next steps): code signing, and a signature checked against a key embedded in the app (the
   SHA-256 lives in the same release, so it guards against corruption, not a compromised repository).
 
+## Logging and diagnostics
+
+A bug report should say which step stopped, after how long, what the other side answered and in what
+environment — collected automatically and safe to paste in public.
+
+- **Log file:** `%APPDATA%\AlmaSound\logs\almasound.log` (falls back to the exe folder, then `%TEMP%`),
+  UTC timestamps with milliseconds, flushed per line, rotated at 5 MB × 5 files. Levels Debug/Info/Warning/Error;
+  Info by default, *Debug logging* in the Diagnostics window for chasing a bug. Each line starts with its
+  module (`Startup:`, `Updates:`, `Audio:`, `Renderer:`, `Settings:`, `Diagnostics:`).
+- **Redaction:** every line, the report and the clipboard pass through `redactSensitive` (passwords, tokens,
+  keys, authorization headers…); secret settings are never printed.
+- **Startup breadcrumbs** and a `──── startup ────` separator per start. The window's own warnings and
+  errors (React, uncaught exceptions) are logged as `Renderer:`. Bursts of the same message collapse into
+  "… N more like this".
+- **Startup guard:** `startup.lock` is written before the window and removed when the first frame is drawn.
+  If it is still there on the next start, AlmaSound starts with software rendering and logs why; forced
+  with `--software` or `ALMASOUND_SOFTWARE`. If no frame appears within 20 s, a clear message says what to do.
+- **Crashes:** native crashes leave a minidump in the `Crashpad` folder (never uploaded); a crashed window
+  offers Reload/Quit; uncaught errors in the main process are logged as `FATAL` and shown with the log path.
+- **Step traces:** the last update check and the last install are recorded step by step with timings and the
+  likely cause of a failure.
+- **Diagnostics window** (Help → Diagnostics, Ctrl+L): live log with filter, errors-only, follow-the-end and
+  debug switches; *Copy report*, *Save to…* and *Save to desktop*
+  (`AlmaSound-diagnostics-YYYY-MM-DD-HHMMSS.txt`); the log path in the footer.
+- **Report:** versions (app, Electron, Chromium, OS, rendering, GPU), network interfaces, audio facts (context
+  state, sample rate, latencies, output devices, transport), updates, settings, last attempts, files, the last
+  log lines, and `-- end of diagnostics --`. Headless: `AlmaSound.exe --print-diagnostics`.
+- **When the app does not even open:** run `diagnostics.bat` (next to `AlmaSound.exe`, also in the Start menu).
+  It writes `diagnostics.txt` with the app's report in software mode, the app run in compatibility mode, the
+  log tail and recent crashes from the Windows Application log. CI runs it on every Windows build.
+- Not done from the design: a separate framework log file (the renderer's messages go to the same log with a
+  `Renderer:` prefix), attaching a parent console on Windows, and the installation-consistency check (the
+  app ships as one archive, so files cannot be half-replaced).
+
 ## Layout
 
 ```
@@ -108,7 +142,7 @@ Recorded here as the brief asks: when several paths were reasonable, the simples
 - **Shortcuts** are handled in one place, the renderer; the native menu only displays them. In a text field,
   Ctrl+Z undoes the text and Space types a space.
 - **Languages are bundled at build time** from `locales/*.json`.
-- **Settings** (language, theme) live in `settings.json` in the app's user-data folder, written atomically.
+- **Settings** (language, theme, updates, debug logging) live in `settings.json` in the app's user-data folder, written atomically.
 - **Project file extension:** `.alma` (Phase 4).
 - **Input modes:** *Simple* (default) needs no music theory: pick a key, click its seven chords (they play
   and are added), or start from a well-known progression; chips show each chord, its length (click to cycle
