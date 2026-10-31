@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { normalizeChannel, resolveRepository } from '../src/core/updates/releases';
 import { THEMES, type AppSettings, type Theme } from './ipc';
 
-const file = () => join(app.getPath('userData'), 'settings.json');
+export const settingsFile = (): string => join(app.getPath('userData'), 'settings.json');
+const file = settingsFile;
 
 /** On disk, the repository is stored with the compiled default in force when it was saved. */
 interface StoredSettings extends AppSettings {
@@ -37,6 +38,7 @@ export function loadSettings(): AppSettings {
     language: typeof raw.language === 'string' ? raw.language : null,
     theme: THEMES.includes(raw.theme as Theme) ? (raw.theme as Theme) : 'system',
     checkForUpdates: raw.checkForUpdates !== false,
+    debugLogging: raw.debugLogging === true,
     updateChannel: normalizeChannel(raw.updateChannel),
     updateRepository: resolveRepository(
       typeof raw.updateRepository === 'string' ? raw.updateRepository : undefined,

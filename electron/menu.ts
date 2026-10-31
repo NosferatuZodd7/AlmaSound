@@ -56,7 +56,7 @@ export function buildMenu(t: TFunction, win: BrowserWindow, isDev: boolean): Men
     },
     {
       label: t('menu.help'),
-      submenu: [{ label: t('menu.checkUpdates'), click: send('checkUpdates') }],
+      submenu: [item('menu.diagnostics', 'CmdOrCtrl+L', 'diagnostics'), { label: t('menu.checkUpdates'), click: send('checkUpdates') }],
     },
   ];
   return Menu.buildFromTemplate(template);

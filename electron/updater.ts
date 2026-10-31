@@ -14,7 +14,9 @@ import {
   type ReleaseInfo,
   type UpdateMessage,
 } from '../src/core/updates/releases';
+import { Trace } from '../src/core/logging/trace';
 import type { UpdateState, UpdateStatus } from './ipc';
+import { log } from './logger';
 
 export interface UpdaterConfig {
   repository: string;
@@ -35,6 +37,10 @@ export class Updater {
   private _busy = false;
   private _release: ReleaseInfo | null = null;
   private _status: UpdateStatus;
+  /** The last check and the last install, step by step, for the diagnostics report. */
+  readonly checkTrace = new Trace('Update check');
+  readonly installTrace = new Trace('Update install');
+  readonly traces: readonly Trace[] = [this.checkTrace, this.installTrace];
 
   constructor(
     private readonly _config: () => UpdaterConfig,
@@ -55,7 +61,13 @@ export class Updater {
     try {
       this._set('checking', null, manual);
       const { repository, channel } = this._config();
-      if (!isRepositoryName(repository)) return this._set('error', { key: 'updates.notSet' }, manual);
+      const trace = this.checkTrace;
+      trace.begin(`${repository || '(no repository)'}, ${channel}, ${manual ? 'manual' : 'automatic'}`);
+      if (!isRepositoryName(repository)) {
+        trace.skip('request', 'the repository is not set (expected owner/name)');
+        return this._set('error', { key: 'updates.notSet' }, manual);
+      }
+      trace.step('request', `GET ${this._apiBase}/repos/${repository}/releases`);
 
       let res: Response;
       try {
@@ -64,25 +76,41 @@ export class Updater {
           signal: AbortSignal.timeout(TIMEOUT_MS),
         });
       } catch (e) {
+        trace.fail(`no answer: ${errorText(e)} (offline? a proxy or firewall blocking api.github.com? timeout ${TIMEOUT_MS} ms)`);
         return this._set('error', { key: 'updates.unreachable', params: { error: errorText(e) } }, manual);
       }
-      if (res.status === 404) return this._set('error', { key: 'updates.notFound', params: { repo: repository } }, manual);
-      if (res.status === 403 || res.status === 429) return this._set('error', { key: 'updates.rateLimited' }, manual);
-      if (!res.ok) return this._set('error', { key: 'updates.httpError', params: { status: res.status } }, manual);
+      if (res.status === 404) {
+        trace.fail('HTTP 404: the repository is private or the name is wrong');
+        return this._set('error', { key: 'updates.notFound', params: { repo: repository } }, manual);
+      }
+      if (res.status === 403 || res.status === 429) {
+        trace.fail(`HTTP ${res.status}: rate limit (anonymous API allows 60 requests per hour per IP)`);
+        return this._set('error', { key: 'updates.rateLimited' }, manual);
+      }
+      if (!res.ok) {
+        trace.fail(`HTTP ${res.status}`);
+        return this._set('error', { key: 'updates.httpError', params: { status: res.status } }, manual);
+      }
+      trace.step('parse', `HTTP ${res.status}`);
 
       let releases: ReleaseInfo[];
       try {
         releases = parseReleases(await res.json(), ASSET_SUFFIX);
       } catch {
+        trace.fail('the answer is not the expected JSON');
         return this._set('error', { key: 'updates.badResponse' }, manual);
       }
+      trace.ok(`${releases.length} releases (${releases.map((r) => r.tag).join(', ') || 'none'})`);
       if (releases.length === 0) return this._set('up-to-date', { key: 'updates.noReleases' }, manual);
 
       const current = this._status.currentVersion;
+      trace.step('pick', `channel ${channel}, installed ${current}`);
       const found = pick(releases, channel, current);
+      trace.ok(found ? `offer ${found.tag}${found.assetUrl ? '' : ' (no installer for this system)'}` : 'nothing newer');
       if (!found) return this._set('up-to-date', describeNothingNew(releases, channel, current), manual);
       this._offer(found);
     } finally {
+      this.checkTrace.end();
       this._busy = false;
     }
   }
@@ -111,9 +139,12 @@ export class Updater {
       return this._set('error', { key: 'updates.downloadFailed', params: { error: 'unexpected asset' } }, true);
     }
     this._busy = true;
+    const trace = this.installTrace;
+    trace.begin(`${r.tag}, ${r.assetName}`);
     try {
       // Get the expected hash before downloading tens of MB with nothing to compare against.
       let expected = r.assetSha256;
+      trace.step('hash', expected ? 'from the release text' : r.assetSha256Url ? `GET ${r.assetSha256Url}` : 'none published');
       if (!expected && r.assetSha256Url) {
         try {
           const res = await net.fetch(r.assetSha256Url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
@@ -121,33 +152,56 @@ export class Updater {
         } catch {
           expected = '';
         }
-        if (!expected) return this._set('error', { key: 'updates.hashUnreadable' }, true);
+        if (!expected) {
+          trace.fail('the .sha256 file could not be read or has no 64-hex-digit hash');
+          return this._set('error', { key: 'updates.hashUnreadable' }, true);
+        }
       }
+      trace.step('download', r.assetUrl);
 
       const file = join(app.getPath('temp'), r.assetName);
       let actual: string;
       try {
         actual = await this._download(r, file);
       } catch (e) {
+        trace.fail(`${errorText(e)} (connection dropped? disk full? antivirus holding ${file}?)`);
         await unlink(file).catch(() => undefined);
         return this._set('error', { key: 'updates.downloadFailed', params: { error: errorText(e) } }, true);
       }
 
+      trace.ok(`saved to ${file}`);
       if (expected && actual !== expected) {
+        trace.step('verify');
+        trace.fail(`SHA-256 mismatch: expected ${expected}, got ${actual}; file deleted`);
         await unlink(file).catch(() => undefined);
-        console.error(`Update ${r.assetName}: SHA-256 mismatch, expected ${expected}, got ${actual}`);
+        log.error(`Updates: ${r.assetName}: SHA-256 mismatch, expected ${expected}, got ${actual}`);
         return this._set('error', { key: 'updates.mismatch' }, true);
       }
-      if (!expected) console.warn(`Update ${r.assetName}: no SHA-256 published; only HTTPS vouched for the file`);
+      if (expected) {
+        trace.step('verify');
+        trace.ok('SHA-256 matches');
+      } else {
+        trace.skip('verify', 'no SHA-256 published: only HTTPS vouched for the file');
+        log.warn(`Updates: ${r.assetName}: no SHA-256 published; only HTTPS vouched for the file`);
+      }
+      trace.step('launch', file);
 
       this._set('ready', { key: 'updates.ready' }, true);
       try {
         // A running exe cannot be replaced: start the installer on its own, then quit.
         const child = spawn(file, [], { detached: true, stdio: 'ignore' });
-        child.on('error', () => this._set('error', { key: 'updates.launchFailed', params: { path: file } }, true));
+        child.on('error', (e) => {
+          trace.fail(errorText(e));
+          this._set('error', { key: 'updates.launchFailed', params: { path: file } }, true);
+        });
         child.unref();
-        child.once('spawn', () => setTimeout(() => app.quit(), 500));
-      } catch {
+        child.once('spawn', () => {
+          trace.ok('installer started; quitting');
+          trace.end();
+          setTimeout(() => app.quit(), 500);
+        });
+      } catch (e) {
+        trace.fail(errorText(e));
         this._set('error', { key: 'updates.launchFailed', params: { path: file } }, true);
       }
     } finally {
@@ -188,6 +242,7 @@ export class Updater {
   }
 
   private _offer(release: ReleaseInfo): void {
+    log.info(`Updates: available ${release.tag} (${release.assetName || 'no installer, page only'})`);
     this._release = release;
     this._status = {
       ...this._status,
@@ -205,6 +260,8 @@ export class Updater {
   }
 
   private _set(state: UpdateState, message: UpdateMessage | null, notify: boolean): void {
+    const detail = message ? ` (${message.key}${message.params ? ` ${JSON.stringify(message.params)}` : ''})` : '';
+    log.log(state === 'error' ? 'warn' : 'info', `Updates: ${state}${detail}`);
     const keepsRelease = state === 'downloading' || state === 'ready' || (state === 'error' && this._status.release !== null);
     this._status = { ...this._status, state, message, release: keepsRelease ? this._status.release : null };
     if (!keepsRelease) this._release = null;

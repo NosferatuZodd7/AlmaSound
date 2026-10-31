@@ -16,6 +16,16 @@ const api: AlmaSoundApi = {
     return () => ipcRenderer.off(CHANNELS.updateStatus, handler);
   },
   confirm: (options) => ipcRenderer.invoke(CHANNELS.confirm, options),
+  log: (level, message) => ipcRenderer.send(CHANNELS.log, level, message),
+  getLog: () => ipcRenderer.invoke(CHANNELS.getLog),
+  onLogLine: (listener) => {
+    const handler = (_e: IpcRendererEvent, line: string) => listener(line);
+    ipcRenderer.on(CHANNELS.logLine, handler);
+    return () => ipcRenderer.off(CHANNELS.logLine, handler);
+  },
+  setDebugLogging: (on) => ipcRenderer.invoke(CHANNELS.setDebugLogging, on),
+  saveDiagnostics: (target, audio) => ipcRenderer.invoke(CHANNELS.saveDiagnostics, target, audio),
+  firstFrame: () => ipcRenderer.send(CHANNELS.firstFrame),
   onMenu: (listener) => {
     const handler = (_e: IpcRendererEvent, action: MenuAction) => listener(action);
     ipcRenderer.on(CHANNELS.menu, handler);
