@@ -5,4 +5,69 @@ Windows desktop app to compose music from chord progressions, shown as glowing v
 - Brief: [docs/BRIEF.md](docs/BRIEF.md)
 - Reference web prototype: [docs/prototype/linhas-de-acordes.html](docs/prototype/linhas-de-acordes.html)
 
-Status: planning — folder structure and phase plan awaiting approval.
+## Status
+
+| Phase | State |
+| --- | --- |
+| 1 — Core (parser, voicing, timeline, stage, playback, editing, undo/redo, zoom, language setting) | done; awaiting owner review |
+| 2 — Tracks and sampled instruments | not started |
+| 3 — Imported audio and recording | not started |
+| 4 — Projects and export | not started |
+| 5 — Windows installer and portable build | not started |
+
+Phase 1 plays a **placeholder synthesized piano**; sampled instruments arrive in Phase 2.
+
+## Development
+
+Requires Node.js 22+.
+
+```bash
+npm install
+npm run dev          # app with hot reload
+npm run typecheck
+npm test             # unit tests (Vitest)
+npm run test:e2e     # builds, then drives the real Electron app with Playwright
+```
+
+On Linux without a display, run the end-to-end tests under a virtual one:
+`xvfb-run -a -s "-screen 0 1280x800x24" npm run test:e2e`.
+
+## Layout
+
+```
+electron/        main process: window, native menu, settings file, IPC contract, preload
+src/core/        music theory and timeline (pure TypeScript, no UI or audio)
+src/audio/       audio engine (lookahead scheduler) and instruments
+src/ui/          React components and the canvas stage
+src/i18n/        i18next setup, locale discovery, Intl formatting
+locales/         one JSON per language (en is the reference)
+tests/unit/      Vitest
+tests/e2e/       Playwright against the built Electron app
+```
+
+## Adding a language
+
+Copy `locales/en.json` to `locales/<code>.json` (e.g. `fr.json`, `pt-BR.json`), set `_meta.name` to the
+language's own name and translate the values. It appears in Settings → Language after the next build;
+missing keys show the English text. No code changes are needed.
+
+## Decisions
+
+Recorded here as the brief asks: when several paths were reasonable, the simplest was chosen.
+
+- **Electron, not Tauri.** On Windows, Tauri also renders with Chromium (WebView2), so there is no audio or
+  canvas gain; Electron pins one Chromium version for every PC and makes bundling ffmpeg easy.
+- **electron-vite** builds main, preload and renderer with one config.
+- **No Tone.js.** A small lookahead scheduler on the Web Audio clock. Playback and (Phase 4) offline export
+  share the same note list (`noteEvents`) and instrument code, so the export sounds like playback.
+- **Visuals follow the audio clock** (`AudioContext.currentTime` minus output latency), not a separate timer.
+- **Notes depend only on the progression text.** Changing the BPM rescales time and keeps hand edits;
+  changing the text regenerates the voices and asks first if there are hand edits (undo brings them back).
+- **Undo/redo** covers note edits and progression changes; one drag is one undo step. BPM and zoom are not
+  part of the history.
+- **Shortcuts** are handled in one place, the renderer; the native menu only displays them. In a text field,
+  Ctrl+Z undoes the text and Space types a space.
+- **Languages are bundled at build time** from `locales/*.json`.
+- **Settings** (language) live in `settings.json` in the app's user-data folder, written atomically.
+- **Project file extension:** `.alma` (Phase 4).
+- **Fonts:** system UI font (Segoe UI on Windows), so nothing is downloaded at run time.
