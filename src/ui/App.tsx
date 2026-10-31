@@ -1,27 +1,59 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AlmaSoundApi, MenuAction } from '../../electron/ipc';
+import type { AlmaSoundApi, MenuAction, Theme } from '../../electron/ipc';
 import type { AudioEngine } from '../audio/engine';
 import { ZOOM, type ProjectStore } from './projectStore';
+import { ChordTitle } from './components/ChordTitle';
+import { IconButton } from './components/IconButton';
 import { ProgressionInput } from './components/ProgressionInput';
 import { SettingsDialog } from './components/SettingsDialog';
 import { Transport } from './components/Transport';
+import type { StageInsets } from './stage/geometry';
 import { Stage } from './stage/Stage';
 
 interface Props {
   store: ProjectStore;
   engine: AudioEngine;
+  initialTheme: Theme;
   /** Electron bridge; absent when the UI runs in a plain browser. */
   api?: AlmaSoundApi;
 }
 
 const isTextField = (el: Element | null): boolean => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement;
 
-export function App({ store, engine, api }: Props) {
+export function App({ store, engine, initialTheme, api }: Props) {
   const { t, i18n } = useTranslation();
   const state = useSyncExternalStore(store.subscribe, store.getState);
   const playing = useSyncExternalStore(engine.subscribe, () => engine.playing);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [theme, setTheme] = useState(initialTheme);
+  const [chordIndex, setChordIndex] = useState(0);
+  const topbar = useRef<HTMLElement>(null);
+  const dock = useRef<HTMLElement>(null);
+  const insets = useRef<StageInsets>({ top: 0, bottom: 0 });
+  const ctrl = t('keys.ctrl');
+
+  // The stage keeps notes clear of the floating panels; they resize with the language and window.
+  useEffect(() => {
+    const measure = () => {
+      const top = topbar.current!.getBoundingClientRect();
+      const bottom = dock.current!.getBoundingClientRect();
+      insets.current = { top: top.bottom, bottom: window.innerHeight - bottom.top };
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(topbar.current!);
+    observer.observe(dock.current!);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
+  const changeTheme = (next: Theme) => {
+    setTheme(next);
+    void api?.setTheme(next);
+  };
 
   const applyText = async (text: string): Promise<boolean> => {
     if (store.applyText(text) !== 'needsConfirm') return true;
@@ -97,37 +129,44 @@ export function App({ store, engine, api }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [run]);
 
+  const chord = state.song.chords[Math.min(chordIndex, state.song.chords.length - 1)];
+
   return (
     <div className="app">
-      <main className="stage-wrap">
-        <Stage store={store} engine={engine} />
-      </main>
-      <footer className="bar">
+      <div className="backdrop" aria-hidden="true" />
+      <Stage store={store} engine={engine} insets={insets} onChord={setChordIndex} />
+      <header ref={topbar} className="topbar">
+        <div className="brand glass">
+          <span className="brand-mark" aria-hidden="true" />
+          <span className="brand-name">{t('app.title')}</span>
+        </div>
+        {chord && <ChordTitle key={chord.symbol.label + chordIndex} label={chord.symbol.label} edited={chord.edited} />}
+        <nav className="toolbar glass" aria-label={t('menu.edit')}>
+          <IconButton icon="undo" variant="ghost" tipBelow label={t('shortcuts.undo')} shortcut={`${ctrl}+Z`} keys="Control+Z" disabled={!state.canUndo} onClick={() => store.undo()} />
+          <IconButton icon="redo" variant="ghost" tipBelow label={t('shortcuts.redo')} shortcut={`${ctrl}+Y`} keys="Control+Y" disabled={!state.canRedo} onClick={() => store.redo()} />
+          <IconButton icon="settings" variant="ghost" tipBelow label={t('settings.open')} shortcut={`${ctrl}+,`} keys="Control+Comma" onClick={() => setSettingsOpen(true)} />
+        </nav>
+      </header>
+      <footer ref={dock} className="dock glass">
         <ProgressionInput text={state.text} problems={state.problems} empty={state.empty} onApply={applyText} />
-        <Transport
-          engine={engine}
-          playing={playing}
-          bpm={state.bpm}
-          zoom={state.zoom}
-          onBpm={(b) => store.setBpm(b)}
-          onRestart={() => run('restart')}
-          onZoom={(d) => run(d > 0 ? 'zoomIn' : 'zoomOut')}
-        />
-        <span className="spacer" />
-        <button type="button" onClick={() => store.undo()} disabled={!state.canUndo} aria-keyshortcuts="Control+Z">
-          {t('shortcuts.undo')} <kbd>{t('keys.ctrl')}+Z</kbd>
-        </button>
-        <button type="button" onClick={() => store.redo()} disabled={!state.canRedo} aria-keyshortcuts="Control+Y">
-          {t('shortcuts.redo')} <kbd>{t('keys.ctrl')}+Y</kbd>
-        </button>
-        <button type="button" onClick={() => setSettingsOpen(true)} aria-keyshortcuts="Control+Comma">
-          {t('settings.open')} <kbd>{t('keys.ctrl')}+,</kbd>
-        </button>
-        <p className="hint">
-          {t('stage.hint')} · <span className="edited-mark">*</span> {t('stage.edited')}
-        </p>
+        <div className="dock-row">
+          <Transport
+            engine={engine}
+            playing={playing}
+            bpm={state.bpm}
+            zoom={state.zoom}
+            onBpm={(b) => store.setBpm(b)}
+            onRestart={() => run('restart')}
+            onZoom={(d) => run(d > 0 ? 'zoomIn' : 'zoomOut')}
+          />
+          <span className="spacer" />
+          <p className="hint">
+            {t('stage.hint')} · <span className="edited-mark" aria-hidden="true" />
+            {t('stage.edited')}
+          </p>
+        </div>
       </footer>
-      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} onLanguage={changeLanguage} />
+      <SettingsDialog open={settingsOpen} theme={theme} onClose={() => setSettingsOpen(false)} onLanguage={changeLanguage} onTheme={changeTheme} />
     </div>
   );
 }

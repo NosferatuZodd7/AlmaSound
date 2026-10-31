@@ -35,7 +35,11 @@
     "open": "Definições",
     "title": "Definições",
     "language": "Idioma",
-    "close": "Fechar"
+    "close": "Fechar",
+    "theme": "Aparência",
+    "themeSystem": "Sistema",
+    "themeLight": "Claro",
+    "themeDark": "Escuro"
   },
   "dialog": {
     "discardEdits": {

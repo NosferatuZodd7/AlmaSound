@@ -35,7 +35,11 @@
     "open": "Settings",
     "title": "Settings",
     "language": "Language",
-    "close": "Close"
+    "close": "Close",
+    "theme": "Appearance",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark"
   },
   "dialog": {
     "discardEdits": {

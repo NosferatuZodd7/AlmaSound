@@ -28,21 +28,25 @@ export function ProgressionInput({ text, problems, empty, onApply }: Props) {
   const message = empty ? t('progression.empty') : problems.length ? t('progression.invalid', { tokens: problems.join(', ') }) : '';
 
   return (
-    <div className="field grow">
-      <label htmlFor="progression">{t('progression.label')}</label>
+    <div className="field progression">
+      <label className="field-label" htmlFor="progression">
+        {t('progression.label')}
+      </label>
       <input
         id="progression"
+        className="input input-mono"
         value={draft}
         autoComplete="off"
         spellCheck={false}
-        aria-describedby="progression-help progression-message"
+        placeholder={t('progression.help')}
+        title={t('progression.help')}
+        aria-describedby="progression-message"
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => void apply()}
         onKeyDown={(e) => {
           if (e.key === 'Enter') void apply();
         }}
       />
-      <small id="progression-help">{t('progression.help')}</small>
       <p id="progression-message" className="message" role="status">
         {message}
       </p>
