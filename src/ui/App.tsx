@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AlmaSoundApi, MenuAction, Theme } from '../../electron/ipc';
+import type { AlmaSoundApi, AppSettings, MenuAction, Theme, UpdateSettings, UpdateStatus } from '../../electron/ipc';
 import type { AudioEngine } from '../audio/engine';
 import { ZOOM, type ProjectStore } from './projectStore';
 import { ChordTitle } from './components/ChordTitle';
 import { IconButton } from './components/IconButton';
 import { ProgressionInput } from './components/ProgressionInput';
 import { SettingsDialog } from './components/SettingsDialog';
+import { UpdateDialog } from './components/UpdateDialog';
+import { UpdatesSection } from './components/UpdatesSection';
 import { Transport } from './components/Transport';
 import type { StageInsets } from './stage/geometry';
 import { Stage } from './stage/Stage';
@@ -14,19 +16,22 @@ import { Stage } from './stage/Stage';
 interface Props {
   store: ProjectStore;
   engine: AudioEngine;
-  initialTheme: Theme;
+  initialSettings: AppSettings;
   /** Electron bridge; absent when the UI runs in a plain browser. */
   api?: AlmaSoundApi;
 }
 
 const isTextField = (el: Element | null): boolean => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement;
 
-export function App({ store, engine, initialTheme, api }: Props) {
+export function App({ store, engine, initialSettings, api }: Props) {
   const { t, i18n } = useTranslation();
   const state = useSyncExternalStore(store.subscribe, store.getState);
   const playing = useSyncExternalStore(engine.subscribe, () => engine.playing);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [theme, setTheme] = useState(initialTheme);
+  const [theme, setTheme] = useState(initialSettings.theme);
+  const [updateSettings, setUpdateSettings] = useState<UpdateSettings>(initialSettings);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
+  const [updateOpen, setUpdateOpen] = useState(false);
   const [chordIndex, setChordIndex] = useState(0);
   const topbar = useRef<HTMLElement>(null);
   const dock = useRef<HTMLElement>(null);
@@ -49,6 +54,20 @@ export function App({ store, engine, initialTheme, api }: Props) {
       window.removeEventListener('resize', measure);
     };
   }, []);
+
+  useEffect(() => {
+    if (!api) return;
+    void api.getUpdateStatus().then(setUpdateStatus);
+    return api.onUpdateStatus((status, notify) => {
+      setUpdateStatus(status);
+      if (notify && status.state === 'available') setUpdateOpen(true);
+    });
+  }, [api]);
+
+  const changeUpdateSettings = (patch: Partial<UpdateSettings>) => {
+    setUpdateSettings((s) => ({ ...s, ...patch }));
+    void api?.setUpdateSettings(patch);
+  };
 
   const changeTheme = (next: Theme) => {
     setTheme(next);
@@ -80,6 +99,9 @@ export function App({ store, engine, initialTheme, api }: Props) {
       switch (action) {
         case 'settings':
           return setSettingsOpen(true);
+        case 'checkUpdates':
+          setSettingsOpen(true);
+          return void api?.checkForUpdates();
         case 'undo':
         case 'redo':
           // In a text field the shortcut edits the text; elsewhere it undoes note edits.
@@ -99,7 +121,7 @@ export function App({ store, engine, initialTheme, api }: Props) {
           return engine.seek(0);
       }
     },
-    [store, engine],
+    [store, engine, api],
   );
 
   useEffect(() => api?.onMenu(run), [api, run]);
@@ -144,7 +166,16 @@ export function App({ store, engine, initialTheme, api }: Props) {
         <nav className="toolbar glass" aria-label={t('menu.edit')}>
           <IconButton icon="undo" variant="ghost" tipBelow label={t('shortcuts.undo')} shortcut={`${ctrl}+Z`} keys="Control+Z" disabled={!state.canUndo} onClick={() => store.undo()} />
           <IconButton icon="redo" variant="ghost" tipBelow label={t('shortcuts.redo')} shortcut={`${ctrl}+Y`} keys="Control+Y" disabled={!state.canRedo} onClick={() => store.redo()} />
-          <IconButton icon="settings" variant="ghost" tipBelow label={t('settings.open')} shortcut={`${ctrl}+,`} keys="Control+Comma" onClick={() => setSettingsOpen(true)} />
+          <IconButton
+            icon="settings"
+            variant="ghost"
+            tipBelow
+            label={updateStatus?.state === 'available' ? `${t('settings.open')} · ${t('updates.badge')}` : t('settings.open')}
+            shortcut={`${ctrl}+,`}
+            keys="Control+Comma"
+            dot={updateStatus?.state === 'available'}
+            onClick={() => setSettingsOpen(true)}
+          />
         </nav>
       </header>
       <footer ref={dock} className="dock glass">
@@ -166,7 +197,37 @@ export function App({ store, engine, initialTheme, api }: Props) {
           </p>
         </div>
       </footer>
-      <SettingsDialog open={settingsOpen} theme={theme} onClose={() => setSettingsOpen(false)} onLanguage={changeLanguage} onTheme={changeTheme} />
+      <SettingsDialog
+        open={settingsOpen}
+        theme={theme}
+        onClose={() => setSettingsOpen(false)}
+        onLanguage={changeLanguage}
+        onTheme={changeTheme}
+        updates={
+          api &&
+          updateStatus && (
+            <UpdatesSection
+              settings={updateSettings}
+              status={updateStatus}
+              onChange={changeUpdateSettings}
+              onCheck={() => void api.checkForUpdates()}
+              onShowUpdate={() => {
+                setSettingsOpen(false);
+                setUpdateOpen(true);
+              }}
+            />
+          )
+        }
+      />
+      {api && updateStatus && (
+        <UpdateDialog
+          open={updateOpen && updateStatus.release !== null}
+          status={updateStatus}
+          onInstall={() => void api.installUpdate()}
+          onOpenPage={() => void api.openUpdatePage()}
+          onLater={() => setUpdateOpen(false)}
+        />
+      )}
     </div>
   );
 }

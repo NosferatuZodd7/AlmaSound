@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { THEMES, type Theme } from '../../../electron/ipc';
 import { LOCALES } from '../../i18n/locales';
@@ -10,11 +10,13 @@ interface Props {
   onClose(): void;
   onLanguage(code: string): void;
   onTheme(theme: Theme): void;
+  /** The updates section (absent outside Electron). */
+  updates?: ReactNode;
 }
 
 const THEME_KEYS = { system: 'settings.themeSystem', light: 'settings.themeLight', dark: 'settings.themeDark' } as const;
 
-export function SettingsDialog({ open, theme, onClose, onLanguage, onTheme }: Props) {
+export function SettingsDialog({ open, theme, onClose, onLanguage, onTheme, updates }: Props) {
   const { t, i18n } = useTranslation();
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -46,6 +48,7 @@ export function SettingsDialog({ open, theme, onClose, onLanguage, onTheme }: Pr
           </span>
           <Segmented name="theme" legend={t('settings.theme')} value={theme} options={THEMES.map((v) => ({ value: v, label: t(THEME_KEYS[v]) }))} onChange={onTheme} />
         </div>
+        {updates}
       </div>
       <form method="dialog" className="dialog-actions">
         <button type="submit" className="btn btn-primary">

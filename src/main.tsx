@@ -9,7 +9,9 @@ import './ui/styles.css';
 
 async function start(): Promise<void> {
   const api = window.almasound;
-  const settings = api ? await api.getSettings() : { language: null, theme: 'system' as const, systemLanguage: navigator.language };
+  const settings = api
+    ? await api.getSettings()
+    : { language: null, theme: 'system' as const, checkForUpdates: false, updateChannel: 'stable' as const, updateRepository: '', systemLanguage: navigator.language };
   const i18n = createI18n(resolveLanguage(settings.language ?? settings.systemLanguage));
   document.documentElement.lang = i18n.language;
 
@@ -25,7 +27,7 @@ async function start(): Promise<void> {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <I18nextProvider i18n={i18n}>
-        <App store={store} engine={engine} initialTheme={settings.theme} api={api} />
+        <App store={store} engine={engine} initialSettings={settings} api={api} />
       </I18nextProvider>
     </StrictMode>,
   );

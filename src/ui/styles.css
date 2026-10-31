@@ -533,7 +533,9 @@ body {
 /* ---------- Dialog ---------- */
 
 .dialog {
-  width: min(420px, calc(100vw - 32px));
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
   padding: var(--space-5);
   border: 0;
   border-radius: var(--radius-xl);
@@ -594,8 +596,145 @@ body {
 
 .dialog-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   justify-content: flex-end;
   margin-top: var(--space-5);
+}
+
+/* ---------- Switch (checkbox role=switch) ---------- */
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.switch {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  border-radius: var(--radius-pill);
+  background: var(--control-fill);
+  box-shadow:
+    var(--control-inset),
+    0 0 0 0.5px var(--glass-edge);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform var(--dur) var(--ease-spring);
+}
+
+.switch:checked {
+  background: var(--accent);
+}
+
+.switch:checked::after {
+  transform: translateX(18px);
+}
+
+/* ---------- Progress ---------- */
+
+.progress {
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--control-fill);
+  box-shadow: var(--control-inset);
+}
+
+.progress::-webkit-progress-bar {
+  background: transparent;
+}
+
+.progress::-webkit-progress-value {
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  transition: width var(--dur) var(--ease);
+}
+
+/* ---------- Settings sections and updates ---------- */
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-5);
+  border-top: 0.5px solid var(--glass-edge);
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.section-head h3 {
+  margin: 0;
+  font: 650 16px var(--font-display);
+}
+
+.update-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.update-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.update-note:empty {
+  display: none;
+}
+
+.update-change {
+  margin: 0;
+  font: 600 15px var(--font);
+}
+
+.update-notes {
+  max-height: 180px;
+  overflow: auto;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  white-space: pre-wrap;
+  font-size: 13px;
+  color: var(--text-2);
+  background: var(--control-fill);
+  box-shadow: var(--control-inset);
+}
+
+.btn-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--error);
+  box-shadow: 0 0 0 2px var(--glass-fill-strong);
 }
 
 /* ==========================================================================

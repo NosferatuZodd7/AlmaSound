@@ -13,12 +13,14 @@ interface Props {
   variant?: 'default' | 'ghost' | 'primary' | 'play';
   tipBelow?: boolean;
   testId?: string;
+  /** Shows a small dot (e.g. an update is available). */
+  dot?: boolean;
 }
 
 const VARIANT = { default: 'btn btn-icon', ghost: 'btn btn-icon btn-ghost', primary: 'btn btn-icon btn-primary', play: 'btn btn-primary btn-play' };
 
 /** Round glass icon button with a tooltip that shows its shortcut. */
-export function IconButton({ icon, label, shortcut, keys, onClick, disabled, variant = 'default', tipBelow, testId }: Props) {
+export function IconButton({ icon, label, shortcut, keys, onClick, disabled, variant = 'default', tipBelow, testId, dot }: Props) {
   return (
     <button
       type="button"
@@ -31,6 +33,7 @@ export function IconButton({ icon, label, shortcut, keys, onClick, disabled, var
       onClick={onClick}
     >
       <Icon name={icon} />
+      {dot && <span className="btn-dot" aria-hidden="true" />}
     </button>
   );
 }
