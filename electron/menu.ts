@@ -54,6 +54,10 @@ export function buildMenu(t: TFunction, win: BrowserWindow, isDev: boolean): Men
         ...(isDev ? [{ label: t('menu.devTools'), role: 'toggleDevTools' } as const] : []),
       ],
     },
+    {
+      label: t('menu.help'),
+      submenu: [{ label: t('menu.checkUpdates'), click: send('checkUpdates') }],
+    },
   ];
   return Menu.buildFromTemplate(template);
 }

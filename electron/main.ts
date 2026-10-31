@@ -1,9 +1,11 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme } from 'electron';
 import { join } from 'node:path';
 import { createI18n, LOCALES, resolveLanguage } from '../src/i18n/locales';
-import { CHANNELS, THEMES, type ConfirmOptions, type Theme } from './ipc';
+import { normalizeChannel } from '../src/core/updates/releases';
+import { CHANNELS, THEMES, type ConfirmOptions, type Theme, type UpdateSettings } from './ipc';
 import { buildMenu } from './menu';
 import { loadSettings, saveSettings } from './settings';
+import { Updater } from './updater';
 
 const isDev = !app.isPackaged && !!process.env.ELECTRON_RENDERER_URL;
 // Lets automated tests run with fresh settings without touching the real profile.
@@ -11,6 +13,14 @@ if (process.env.ALMASOUND_USER_DATA) app.setPath('userData', process.env.ALMASOU
 let settings = loadSettings();
 nativeTheme.themeSource = settings.theme;
 const currentLanguage = () => resolveLanguage(settings.language ?? app.getLocale());
+const STARTUP_CHECK_DELAY_MS = 6000; // after the window opens, so it does not compete with startup
+
+const updater = new Updater(
+  () => ({ repository: settings.updateRepository, channel: settings.updateChannel }),
+  (status, notify) => {
+    for (const w of BrowserWindow.getAllWindows()) w.webContents.send(CHANNELS.updateStatus, status, notify);
+  },
+);
 
 function createWindow(): BrowserWindow {
   const i18n = createI18n(currentLanguage());
@@ -31,7 +41,12 @@ function createWindow(): BrowserWindow {
     },
   });
   Menu.setApplicationMenu(buildMenu(i18n.t, win, isDev));
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    win.show();
+    // Demo mode shows the update dialog without publishing anything (screenshots, tests).
+    if (process.env.ALMASOUND_UPDATE_DEMO === '1') setTimeout(() => updater.demo(), 500);
+    else if (settings.checkForUpdates) setTimeout(() => void updater.check(false), STARTUP_CHECK_DELAY_MS);
+  });
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL);
   else void win.loadFile(join(import.meta.dirname, '../renderer/index.html'));
   return win;
@@ -53,6 +68,21 @@ ipcMain.handle(CHANNELS.setTheme, (_event, theme: unknown) => {
   saveSettings(settings);
   nativeTheme.themeSource = settings.theme;
 });
+
+ipcMain.handle(CHANNELS.setUpdateSettings, (_event, patch: Partial<UpdateSettings>) => {
+  if (!patch || typeof patch !== 'object') return;
+  const next = { ...settings };
+  if (typeof patch.checkForUpdates === 'boolean') next.checkForUpdates = patch.checkForUpdates;
+  if (patch.updateChannel !== undefined) next.updateChannel = normalizeChannel(patch.updateChannel);
+  if (typeof patch.updateRepository === 'string') next.updateRepository = patch.updateRepository.trim();
+  settings = next;
+  saveSettings(settings);
+});
+
+ipcMain.handle(CHANNELS.getUpdateStatus, () => updater.status);
+ipcMain.handle(CHANNELS.checkForUpdates, () => updater.check(true));
+ipcMain.handle(CHANNELS.installUpdate, () => updater.install());
+ipcMain.handle(CHANNELS.openUpdatePage, () => updater.openPage());
 
 ipcMain.handle(CHANNELS.confirm, async (event, o: ConfirmOptions) => {
   const win = BrowserWindow.fromWebContents(event.sender);
