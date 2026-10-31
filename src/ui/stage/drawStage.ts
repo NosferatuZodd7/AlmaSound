@@ -1,13 +1,46 @@
 import { EDIT_RANGE, type Song } from '../../core/song';
 import { chordIndexAt, cosineEase, glideSeconds, pitchAt, secondsPerBeat } from '../../core/timeline';
-import { splitLabel } from '../../core/theory/chords';
 import { noteName } from '../../core/theory/notes';
 import { timeOfX, xOfTime, yOfMidi, type StageGeometry } from './geometry';
 
-/** Voice colours, top voice first: white, cyan, lilac, pink, yellow (bass). */
-export const VOICE_COLORS = ['#f4f7ff', '#7fe3ff', '#c9a8ff', '#ff8fd0', '#ffe066'] as const;
-const EDITED_COLOR = VOICE_COLORS[4];
-const FONT = '"Segoe UI", system-ui, sans-serif';
+export const VOICE_COUNT = 5;
+
+/** Stage colours, read from the CSS design tokens so the canvas follows the light/dark theme. */
+export interface StageTheme {
+  voices: string[];
+  grid: string;
+  gridC: string;
+  band: string;
+  label: string;
+  chordLine: string;
+  chip: string;
+  chipRim: string;
+  chipText: string;
+  edited: string;
+  lens: string;
+  lensRim: string;
+  font: string;
+}
+
+export function readStageTheme(el: Element = document.documentElement): StageTheme {
+  const css = getComputedStyle(el);
+  const v = (name: string) => css.getPropertyValue(name).trim();
+  return {
+    voices: Array.from({ length: VOICE_COUNT }, (_, i) => v(`--voice-${i + 1}`)),
+    grid: v('--stage-grid'),
+    gridC: v('--stage-grid-c'),
+    band: v('--stage-band'),
+    label: v('--text-2'),
+    chordLine: v('--stage-chord-line'),
+    chip: v('--stage-chip'),
+    chipRim: v('--stage-chip-rim'),
+    chipText: v('--text'),
+    edited: v('--edited'),
+    lens: v('--stage-lens'),
+    lensRim: v('--stage-lens-rim'),
+    font: v('--font'),
+  };
+}
 
 export interface DragView {
   chordIndex: number;
@@ -15,9 +48,13 @@ export interface DragView {
   x: number;
 }
 
-export function drawStage(c: CanvasRenderingContext2D, g: StageGeometry, song: Song, bpm: number, now: number, drag: DragView | null): void {
+/**
+ * Draws one frame: octave bands, chord chips, voice lines (solid behind the playhead, dotted
+ * ahead of it), the glass playhead lens with one orb per voice, and the note names.
+ */
+export function drawStage(c: CanvasRenderingContext2D, g: StageGeometry, theme: StageTheme, song: Song, bpm: number, now: number, drag: DragView | null): void {
   c.clearRect(0, 0, g.width, g.height);
-  drawGrid(c, g);
+  drawGrid(c, g, theme);
   if (song.chords.length === 0) return;
 
   const spb = secondsPerBeat(bpm);
@@ -25,77 +62,77 @@ export function drawStage(c: CanvasRenderingContext2D, g: StageGeometry, song: S
   const first = chordIndexAt(song, bpm, timeOfX(g, 0, now));
   const last = chordIndexAt(song, bpm, timeOfX(g, g.width, now));
 
-  // Chord changes and names
-  c.font = `600 12px ${FONT}`;
-  c.textAlign = 'left';
+  // Chord changes: hairline plus a glass chip with the name
   c.lineWidth = 1;
+  c.font = `600 12px ${theme.font}`;
   for (let i = first; i <= last; i++) {
     const ch = song.chords[i];
     const x = Math.round(xOfTime(g, ch.startBeat * spb, now)) + 0.5;
-    c.strokeStyle = 'rgba(170,195,255,.25)';
-    line(c, x, g.top - 26, x, g.bottom);
-    c.fillStyle = ch.edited ? EDITED_COLOR : 'rgba(210,225,255,.75)';
-    c.fillText(ch.symbol.label + (ch.edited ? ' *' : ''), x + 5, g.top - 30);
+    c.strokeStyle = theme.chordLine;
+    line(c, x, g.top - 12, x, g.bottom);
+    const text = ch.symbol.label;
+    const w = c.measureText(text).width + (ch.edited ? 30 : 20);
+    pill(c, theme, x, g.top - 40, w, 24);
+    c.fillStyle = ch.edited ? theme.edited : theme.chipText;
+    c.textBaseline = 'middle';
+    c.fillText(text, x + 10, g.top - 28);
+    if (ch.edited) dot(c, x + w - 10, g.top - 28, 3, theme.edited);
   }
-  c.strokeStyle = 'rgba(230,240,255,.6)';
-  line(c, g.playX, g.top - 26, g.playX, g.bottom);
 
-  // Voice lines: bright with glow in the past, thin and faint in the future
-  for (let v = VOICE_COLORS.length - 1; v >= 0; v--) {
+  // Voice lines, bass first so the top voice sits on top
+  for (let v = VOICE_COUNT - 1; v >= 0; v--) {
     const path = voicePath(g, song, spb, now, v, first, last);
-    const hot = drag?.voice === v;
+    const color = theme.voices[v];
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+    c.strokeStyle = color;
+
     c.save();
-    c.beginPath();
-    c.rect(0, 0, g.playX, g.height);
-    c.clip();
-    c.strokeStyle = VOICE_COLORS[v];
-    c.globalAlpha = 0.18;
-    c.lineWidth = 8;
+    clip(c, 0, g.playX);
+    c.globalAlpha = 0.16;
+    c.lineWidth = 10;
     c.stroke(path);
     c.globalAlpha = 1;
-    c.lineWidth = 2.5;
+    c.lineWidth = 3;
     c.stroke(path);
     c.restore();
 
     c.save();
-    c.beginPath();
-    c.rect(g.playX, 0, g.width - g.playX, g.height);
-    c.clip();
-    c.strokeStyle = VOICE_COLORS[v];
-    c.globalAlpha = hot ? 1 : 0.35;
-    c.lineWidth = hot ? 2.5 : 1.5;
+    clip(c, g.playX, g.width);
+    if (drag?.voice === v) {
+      c.lineWidth = 3;
+    } else {
+      c.globalAlpha = 0.55;
+      c.lineWidth = 2.5;
+      c.setLineDash([0.1, 7]); // dotted "ghost" of what is coming
+    }
     c.stroke(path);
     c.restore();
   }
 
-  // Dots and note names at the playhead
+  drawLens(c, g, theme);
+
+  // Orbs and note names at the playhead
   const tNow = Math.min(total, Math.max(0, now));
   const current = song.chords[chordIndexAt(song, bpm, tNow)];
-  c.font = `600 12px ${FONT}`;
+  c.font = `600 11px ${theme.font}`;
+  c.textBaseline = 'middle';
   let lastY = -99;
   let flip = false;
-  for (let v = 0; v < VOICE_COLORS.length; v++) {
+  for (let v = 0; v < VOICE_COUNT; v++) {
     const y = yOfMidi(g, pitchAt(song, bpm, v, tNow));
-    c.fillStyle = VOICE_COLORS[v];
-    c.shadowColor = VOICE_COLORS[v];
-    c.shadowBlur = 14;
-    c.beginPath();
-    c.arc(g.playX, y, 4.5, 0, Math.PI * 2);
-    c.fill();
-    c.shadowBlur = 0;
-    flip = Math.abs(y - lastY) < 14 ? !flip : false;
+    orb(c, g.playX, y, theme.voices[v]);
+    flip = Math.abs(y - lastY) < 20 ? !flip : false;
     lastY = y;
-    c.fillText(noteName(current.notes[v]), g.playX + (flip ? 44 : 12), y + 4);
+    noteTag(c, theme, noteName(current.notes[v]), g.playX + (flip ? 64 : 16), y, theme.voices[v]);
   }
-
-  drawTitle(c, g, current.symbol.label, current.edited);
 
   if (drag) {
     const ch = song.chords[drag.chordIndex];
-    c.fillStyle = VOICE_COLORS[drag.voice];
-    c.font = `800 15px ${FONT}`;
-    c.fillText(noteName(ch.notes[drag.voice]), drag.x + 14, yOfMidi(g, ch.notes[drag.voice]) - 10);
+    c.font = `700 13px ${theme.font}`;
+    noteTag(c, theme, noteName(ch.notes[drag.voice]), drag.x + 16, yOfMidi(g, ch.notes[drag.voice]) - 18, theme.voices[drag.voice]);
   }
+  c.textBaseline = 'alphabetic';
 }
 
 /** Same shape as timeline.pitchAt: held note, then a cosine glide that lands on the next chord. */
@@ -123,41 +160,97 @@ function voicePath(g: StageGeometry, song: Song, spb: number, now: number, v: nu
   return p;
 }
 
-function drawGrid(c: CanvasRenderingContext2D, g: StageGeometry): void {
+/** Soft alternating octave bands, hairlines per semitone, stronger on each C. */
+function drawGrid(c: CanvasRenderingContext2D, g: StageGeometry, theme: StageTheme): void {
+  for (let m = EDIT_RANGE.low; m < EDIT_RANGE.high; m += 12) {
+    if (((m - EDIT_RANGE.low) / 12) % 2 === 0) continue;
+    const y0 = yOfMidi(g, Math.min(m + 12, EDIT_RANGE.high));
+    c.fillStyle = theme.band;
+    c.fillRect(0, y0, g.width, yOfMidi(g, m) - y0);
+  }
   c.lineWidth = 1;
-  c.font = `600 10px ${FONT}`;
-  c.textAlign = 'left';
+  c.font = `600 10px ${theme.font}`;
+  c.textBaseline = 'alphabetic';
   for (let m = EDIT_RANGE.low; m <= EDIT_RANGE.high; m++) {
     const y = Math.round(yOfMidi(g, m)) + 0.5;
     const isC = m % 12 === 0;
-    c.strokeStyle = isC ? 'rgba(160,190,255,.22)' : 'rgba(140,170,255,.07)';
+    c.strokeStyle = isC ? theme.gridC : theme.grid;
     line(c, 0, y, g.width, y);
     if (isC) {
-      c.fillStyle = 'rgba(180,200,255,.5)';
-      c.fillText(noteName(m), 6, y - 3);
+      c.fillStyle = theme.label;
+      c.fillText(noteName(m), 12, y - 4);
     }
   }
 }
 
-/** Big root plus smaller quality, centred at the top, e.g. "D" + "m7". */
-function drawTitle(c: CanvasRenderingContext2D, g: StageGeometry, label: string, edited: boolean): void {
-  const [root, rest] = splitLabel(label);
-  const sub = rest + (edited ? ' *' : '');
-  const big = Math.min(72, g.width / 7);
-  const bigFont = `800 ${big}px ${FONT}`;
-  const smallFont = `600 ${big * 0.5}px ${FONT}`;
-  c.font = bigFont;
-  const w1 = c.measureText(root).width;
-  c.font = smallFont;
-  const w2 = c.measureText(sub).width;
-  const x = g.width / 2 - (w1 + w2) / 2;
-  const y = Math.min(g.top - 50, 20 + big);
-  c.fillStyle = '#fff';
-  c.textAlign = 'left';
-  c.font = bigFont;
-  c.fillText(root, x, y);
-  c.font = smallFont;
-  c.fillText(sub, x + w1 + 2, y);
+/** The playhead as a vertical glass capsule with a bright rim. */
+function drawLens(c: CanvasRenderingContext2D, g: StageGeometry, theme: StageTheme): void {
+  const w = 16;
+  const x = g.playX - w / 2;
+  const y = g.top - 12;
+  const h = g.bottom - y + 12;
+  c.beginPath();
+  c.roundRect(x, y, w, h, w / 2);
+  c.fillStyle = theme.lens;
+  c.fill();
+  const rim = c.createLinearGradient(0, y, 0, y + h);
+  rim.addColorStop(0, theme.lensRim);
+  rim.addColorStop(0.5, 'transparent');
+  rim.addColorStop(1, theme.lensRim);
+  c.strokeStyle = rim;
+  c.lineWidth = 1;
+  c.stroke();
+}
+
+function orb(c: CanvasRenderingContext2D, x: number, y: number, color: string): void {
+  c.save();
+  c.shadowColor = color;
+  c.shadowBlur = 14;
+  c.fillStyle = color;
+  c.beginPath();
+  c.arc(x, y, 6, 0, Math.PI * 2);
+  c.fill();
+  c.restore();
+  // Specular highlight
+  const hl = c.createRadialGradient(x - 2, y - 2.5, 0, x - 2, y - 2.5, 4);
+  hl.addColorStop(0, 'rgba(255,255,255,.95)');
+  hl.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = hl;
+  c.beginPath();
+  c.arc(x, y, 6, 0, Math.PI * 2);
+  c.fill();
+}
+
+/** A small glass pill with a colour dot and the note name. */
+function noteTag(c: CanvasRenderingContext2D, theme: StageTheme, text: string, x: number, y: number, color: string): void {
+  const w = c.measureText(text).width + 24;
+  pill(c, theme, x, y - 10, w, 20);
+  dot(c, x + 9, y, 3, color);
+  c.fillStyle = theme.chipText;
+  c.fillText(text, x + 16, y);
+}
+
+function pill(c: CanvasRenderingContext2D, theme: StageTheme, x: number, y: number, w: number, h: number): void {
+  c.beginPath();
+  c.roundRect(x, y, w, h, h / 2);
+  c.fillStyle = theme.chip;
+  c.fill();
+  c.strokeStyle = theme.chipRim;
+  c.lineWidth = 1;
+  c.stroke();
+}
+
+function dot(c: CanvasRenderingContext2D, x: number, y: number, r: number, color: string): void {
+  c.fillStyle = color;
+  c.beginPath();
+  c.arc(x, y, r, 0, Math.PI * 2);
+  c.fill();
+}
+
+function clip(c: CanvasRenderingContext2D, x0: number, x1: number): void {
+  c.beginPath();
+  c.rect(x0, 0, x1 - x0, 1e5);
+  c.clip();
 }
 
 function line(c: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number): void {

@@ -12,14 +12,23 @@ export interface StageGeometry {
   bottom: number;
 }
 
-export function stageGeometry(width: number, height: number, zoom: number): StageGeometry {
+/** Space covered by the floating glass panels, so notes are never drawn under them. */
+export interface StageInsets {
+  top: number;
+  bottom: number;
+}
+
+const CHIP_ROOM = 52; // chord chips sit above the note area
+
+export function stageGeometry(width: number, height: number, zoom: number, insets: StageInsets = { top: 0, bottom: 0 }): StageGeometry {
+  const top = insets.top + CHIP_ROOM;
   return {
     width,
     height,
     pps: Math.max(80, width / 8) * zoom,
     playX: width * (width < 600 ? 0.3 : 0.38),
-    top: Math.max(140, height * 0.26),
-    bottom: height - 40,
+    top,
+    bottom: Math.max(top + 120, height - insets.bottom - 28),
   };
 }
 

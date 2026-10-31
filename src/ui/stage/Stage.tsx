@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import type { AudioEngine } from '../../audio/engine';
 import type { ProjectStore } from '../projectStore';
 import { ZOOM } from '../projectStore';
-import { drawStage, type DragView } from './drawStage';
-import { hitTest, midiOfY, stageGeometry } from './geometry';
+import { chordIndexAt } from '../../core/timeline';
+import { drawStage, readStageTheme, type DragView } from './drawStage';
+import { hitTest, midiOfY, stageGeometry, type StageInsets } from './geometry';
 
 type Drag =
   | ({ kind: 'note' } & DragView)
@@ -13,10 +14,14 @@ type Drag =
 interface Props {
   store: ProjectStore;
   engine: AudioEngine;
+  /** Space taken by the floating panels; read every frame, so it can change without re-rendering. */
+  insets: { readonly current: StageInsets };
+  /** Called when the chord under the playhead changes. */
+  onChord(index: number): void;
 }
 
 /** Canvas with the voice lines. Draws every frame from the store and the audio clock, outside React. */
-export function Stage({ store, engine }: Props) {
+export function Stage({ store, engine, insets, onChord }: Props) {
   const { t } = useTranslation();
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -26,8 +31,13 @@ export function Stage({ store, engine }: Props) {
     let size = { w: 0, h: 0 };
     let drag: Drag | null = null;
     let raf = 0;
+    let shownChord = -1;
+    let theme = readStageTheme();
+    const scheme = window.matchMedia('(prefers-color-scheme: dark)');
+    const onScheme = () => (theme = readStageTheme());
+    scheme.addEventListener('change', onScheme);
 
-    const geometry = () => stageGeometry(size.w, size.h, store.getState().zoom);
+    const geometry = () => stageGeometry(size.w, size.h, store.getState().zoom, insets.current);
     const resize = () => {
       const r = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
@@ -38,7 +48,10 @@ export function Stage({ store, engine }: Props) {
     };
     const frame = () => {
       const s = store.getState();
-      drawStage(c, geometry(), s.song, s.bpm, engine.position(), drag?.kind === 'note' ? drag : null);
+      const now = engine.position();
+      drawStage(c, geometry(), theme, s.song, s.bpm, now, drag?.kind === 'note' ? drag : null);
+      const chord = chordIndexAt(s.song, s.bpm, Math.max(0, now));
+      if (chord !== shownChord) onChord((shownChord = chord));
       raf = requestAnimationFrame(frame);
     };
     const point = (e: PointerEvent | WheelEvent) => {
@@ -108,13 +121,14 @@ export function Stage({ store, engine }: Props) {
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
+      scheme.removeEventListener('change', onScheme);
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
       canvas.removeEventListener('pointercancel', onUp);
       canvas.removeEventListener('wheel', onWheel);
     };
-  }, [store, engine]);
+  }, [store, engine, insets, onChord]);
 
   return <canvas ref={ref} className="stage" role="img" aria-label={t('stage.label')} data-testid="stage" />;
 }
