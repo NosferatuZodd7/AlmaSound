@@ -1,0 +1,27 @@
+appId: com.almasound.app
+productName: AlmaSound
+copyright: Personal, non-commercial project
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  multiLanguageInstaller: true
+  installerLanguages: [en_US, pt_PT]
+  artifactName: ${productName}-Setup-${version}.${ext}
+portable:
+  artifactName: ${productName}-Portable-${version}.${ext}
+linux:
+  target: dir # only used to smoke-test packaging on Linux
