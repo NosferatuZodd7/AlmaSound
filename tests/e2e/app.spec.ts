@@ -1,26 +1,13 @@
-import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import { stageGeometry, yOfMidi } from '../../src/ui/stage/geometry';
+import { launchApp } from './launch';
 
-// Runs the built app (npm run test:e2e builds it first). On Linux it needs a display, e.g. xvfb-run.
 let app: ElectronApplication;
 let page: Page;
-const errors: string[] = [];
+let errors: string[];
 
 test.beforeAll(async () => {
-  app = await electron.launch({
-    colorScheme: null, // no emulation: the app's nativeTheme must drive prefers-color-scheme
-    args: ['--no-sandbox', join(import.meta.dirname, '../../out/main/main.js')],
-    env: { ...process.env, ALMASOUND_USER_DATA: mkdtempSync(join(tmpdir(), 'almasound-e2e-')), LANG: 'en_US.UTF-8' },
-  });
-  page = await app.firstWindow();
-  page.on('pageerror', (e) => errors.push(e.message));
-  page.on('console', (m) => {
-    if (m.type() === 'error') errors.push(m.text());
-  });
-  await page.setViewportSize({ width: 1280, height: 760 });
+  ({ app, page, errors } = await launchApp());
 });
 
 test.afterAll(async () => {
