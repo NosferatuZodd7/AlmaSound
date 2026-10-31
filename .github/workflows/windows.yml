@@ -1,0 +1,61 @@
+name: Windows build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write # to refresh the "dev" pre-release
+
+concurrency:
+  group: windows-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Build app
+        run: npx electron-vite build
+
+      - name: End-to-end tests on Windows
+        run: npx playwright test
+
+      - name: Package installer and portable exe
+        run: npx electron-builder --win --x64 --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AlmaSound-windows
+          path: dist/*.exe
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: test-results/
+          if-no-files-found: ignore
+
+      - name: Refresh the "dev" pre-release
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dev --yes --cleanup-tag || true
+          gh release create dev dist/*.exe --prerelease --target "$GITHUB_SHA" \
+            --title "AlmaSound dev build" \
+            --notes "Automatic build of main at $GITHUB_SHA. Unsigned: Windows SmartScreen will warn (More info → Run anyway)."
