@@ -112,5 +112,38 @@
     "installNote": "O AlmaSound fecha e o instalador abre. As tuas definições ficam guardadas.",
     "pageNote": "Não há instalador para este sistema: a página da versão abre no navegador.",
     "badge": "Atualização disponível"
+  },
+  "input": {
+    "mode": "Modo de introdução",
+    "simple": "Simples",
+    "full": "Completo"
+  },
+  "simple": {
+    "key": "Tonalidade",
+    "major": "{{tonic}} maior",
+    "minor": "{{tonic}} menor",
+    "chords": "Acordes desta tonalidade",
+    "add": "Juntar {{chord}}",
+    "ideasLabel": "Ideias",
+    "ideasPlaceholder": "Começar com uma ideia…",
+    "idea": {
+      "pop": "Pop (I–V–vi–IV)",
+      "ballad": "Balada (vi–IV–I–V)",
+      "fifties": "Anos 50 (I–vi–IV–V)",
+      "canon": "Cânone (Pachelbel)",
+      "jazz": "Jazz (ii–V–I)",
+      "andalusian": "Andaluza (i–VII–VI–V)"
+    },
+    "progression": "A tua progressão",
+    "empty": "Clica nos acordes acima para criares a tua progressão.",
+    "beats": "{{count}} tempos · clica para mudar",
+    "remove": "Remover {{chord}}",
+    "clear": "Limpar"
+  },
+  "transition": {
+    "label": "Transição entre notas",
+    "glide": "Contínua",
+    "instant": "Instantânea",
+    "short": "Transição"
   }
 }

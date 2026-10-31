@@ -112,5 +112,38 @@
     "installNote": "AlmaSound closes and the installer opens. Your settings are kept.",
     "pageNote": "There is no installer for this system: the release page opens in your browser.",
     "badge": "Update available"
+  },
+  "input": {
+    "mode": "Input mode",
+    "simple": "Simple",
+    "full": "Full"
+  },
+  "simple": {
+    "key": "Key",
+    "major": "{{tonic}} major",
+    "minor": "{{tonic}} minor",
+    "chords": "Chords in this key",
+    "add": "Add {{chord}}",
+    "ideasLabel": "Ideas",
+    "ideasPlaceholder": "Start from an idea…",
+    "idea": {
+      "pop": "Pop (I–V–vi–IV)",
+      "ballad": "Ballad (vi–IV–I–V)",
+      "fifties": "50s (I–vi–IV–V)",
+      "canon": "Canon (Pachelbel)",
+      "jazz": "Jazz (ii–V–I)",
+      "andalusian": "Andalusian (i–VII–VI–V)"
+    },
+    "progression": "Your progression",
+    "empty": "Click the chords above to build your progression.",
+    "beats": "{{count}} beats · click to change",
+    "remove": "Remove {{chord}}",
+    "clear": "Clear"
+  },
+  "transition": {
+    "label": "Transition between notes",
+    "glide": "Smooth",
+    "instant": "Instant",
+    "short": "Transition"
   }
 }

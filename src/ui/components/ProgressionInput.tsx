@@ -28,10 +28,7 @@ export function ProgressionInput({ text, problems, empty, onApply }: Props) {
   const message = empty ? t('progression.empty') : problems.length ? t('progression.invalid', { tokens: problems.join(', ') }) : '';
 
   return (
-    <div className="field progression">
-      <label className="field-label" htmlFor="progression">
-        {t('progression.label')}
-      </label>
+    <>
       <input
         id="progression"
         className="input input-mono"
@@ -50,6 +47,6 @@ export function ProgressionInput({ text, problems, empty, onApply }: Props) {
       <p id="progression-message" className="message" role="status">
         {message}
       </p>
-    </div>
+    </>
   );
 }

@@ -2,10 +2,15 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { useTranslation } from 'react-i18next';
 import type { AlmaSoundApi, AppSettings, MenuAction, Theme, UpdateSettings, UpdateStatus } from '../../electron/ipc';
 import type { AudioEngine } from '../audio/engine';
+import logo from './assets/logo.png';
 import { ZOOM, type ProjectStore } from './projectStore';
+import { parseChord } from '../core/theory/chords';
+import { voiceProgression } from '../core/theory/voicing';
+import type { Transition } from '../core/timeline';
 import { ChordTitle } from './components/ChordTitle';
 import { IconButton } from './components/IconButton';
-import { ProgressionInput } from './components/ProgressionInput';
+import { ProgressionEditor } from './components/ProgressionEditor';
+import { Segmented } from './components/Segmented';
 import { SettingsDialog } from './components/SettingsDialog';
 import { UpdateDialog } from './components/UpdateDialog';
 import { UpdatesSection } from './components/UpdatesSection';
@@ -159,7 +164,7 @@ export function App({ store, engine, initialSettings, api }: Props) {
       <Stage store={store} engine={engine} insets={insets} onChord={setChordIndex} />
       <header ref={topbar} className="topbar">
         <div className="brand glass">
-          <span className="brand-mark" aria-hidden="true" />
+          <img className="brand-mark" src={logo} alt="" />
           <span className="brand-name">{t('app.title')}</span>
         </div>
         {chord && <ChordTitle key={chord.symbol.label + chordIndex} label={chord.symbol.label} edited={chord.edited} />}
@@ -179,7 +184,16 @@ export function App({ store, engine, initialSettings, api }: Props) {
         </nav>
       </header>
       <footer ref={dock} className="dock glass">
-        <ProgressionInput text={state.text} problems={state.problems} empty={state.empty} onApply={applyText} />
+        <ProgressionEditor
+          text={state.text}
+          problems={state.problems}
+          empty={state.empty}
+          onApply={applyText}
+          onPreview={(label) => {
+            const chord = parseChord(label);
+            if (chord) engine.preview(voiceProgression([chord])[0]);
+          }}
+        />
         <div className="dock-row">
           <Transport
             engine={engine}
@@ -190,6 +204,19 @@ export function App({ store, engine, initialSettings, api }: Props) {
             onRestart={() => run('restart')}
             onZoom={(d) => run(d > 0 ? 'zoomIn' : 'zoomOut')}
           />
+          <div className="bpm">
+            <span className="field-label">{t('transition.short')}</span>
+            <Segmented<Transition>
+              name="transition"
+              legend={t('transition.label')}
+              value={state.transition}
+              options={[
+                { value: 'glide', label: t('transition.glide') },
+                { value: 'instant', label: t('transition.instant') },
+              ]}
+              onChange={(v) => store.setTransition(v)}
+            />
+          </div>
           <span className="spacer" />
           <p className="hint">
             {t('stage.hint')} · <span className="edited-mark" aria-hidden="true" />

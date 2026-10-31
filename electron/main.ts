@@ -28,7 +28,7 @@ function createWindow(): BrowserWindow {
     width: 1280,
     height: 800,
     minWidth: 720,
-    minHeight: 480,
+    minHeight: 640,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#0d0f1a' : '#eef1f8',
     title: i18n.t('app.title'),
     show: false,
