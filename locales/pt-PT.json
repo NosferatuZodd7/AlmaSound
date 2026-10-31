@@ -1,6 +1,10 @@
 {
-  "_meta": { "name": "Português (Portugal)" },
-  "app": { "title": "AlmaSound" },
+  "_meta": {
+    "name": "Português (Portugal)"
+  },
+  "app": {
+    "title": "AlmaSound"
+  },
   "progression": {
     "label": "Progressão",
     "help": "Acordes separados por espaços. Junta :N para N tempos (por defeito 4), ex.: Am Dm7 G7:2 C/G:2",
@@ -23,13 +27,9 @@
     "edited": "Editado à mão"
   },
   "shortcuts": {
-    "title": "Atalhos",
-    "playPause": "Tocar / pausa",
-    "restart": "Voltar ao início",
     "undo": "Desfazer",
     "redo": "Refazer",
-    "zoom": "Zoom",
-    "settings": "Definições"
+    "zoom": "Zoom"
   },
   "settings": {
     "open": "Definições",
@@ -65,5 +65,10 @@
     "playback": "Reprodução",
     "playPause": "Tocar / pausa",
     "restart": "Voltar ao início"
+  },
+  "keys": {
+    "space": "Espaço",
+    "home": "Home",
+    "ctrl": "Ctrl"
   }
 }

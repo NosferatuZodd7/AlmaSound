@@ -1,6 +1,10 @@
 {
-  "_meta": { "name": "English" },
-  "app": { "title": "AlmaSound" },
+  "_meta": {
+    "name": "English"
+  },
+  "app": {
+    "title": "AlmaSound"
+  },
   "progression": {
     "label": "Progression",
     "help": "Chords separated by spaces. Add :N for N beats (default 4), e.g. Am Dm7 G7:2 C/G:2",
@@ -23,13 +27,9 @@
     "edited": "Edited by hand"
   },
   "shortcuts": {
-    "title": "Shortcuts",
-    "playPause": "Play / pause",
-    "restart": "Back to start",
     "undo": "Undo",
     "redo": "Redo",
-    "zoom": "Zoom",
-    "settings": "Settings"
+    "zoom": "Zoom"
   },
   "settings": {
     "open": "Settings",
@@ -65,5 +65,10 @@
     "playback": "Playback",
     "playPause": "Play / pause",
     "restart": "Back to start"
+  },
+  "keys": {
+    "space": "Space",
+    "home": "Home",
+    "ctrl": "Ctrl"
   }
 }
