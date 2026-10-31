@@ -52,7 +52,8 @@ export class ProjectStore {
 
   /**
    * Regenerates the voices from new text. Hand edits are only discarded with `discardEdits`;
-   * otherwise the caller gets 'needsConfirm' and should ask the user first.
+   * otherwise the caller gets 'needsConfirm' and should ask the user first. Blank text clears the
+   * song; text with no valid chord keeps the current song and reports 'empty'.
    */
   applyText(text: string, discardEdits = false): ApplyResult {
     if (text === this._state.text) {
@@ -60,7 +61,7 @@ export class ProjectStore {
       return 'unchanged';
     }
     const built = buildSong(text);
-    if (built.song.chords.length === 0) {
+    if (built.song.chords.length === 0 && text.trim() !== '') {
       this._set({ empty: true, problems: built.invalid });
       return 'empty';
     }

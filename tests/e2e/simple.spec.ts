@@ -43,6 +43,22 @@ test('adds a chord by clicking it, changes its length and removes it', async () 
   await page.screenshot({ path: 'test-results/simple-mode.png' });
 });
 
+test('"Clear" empties the song: no chords on stage, nothing to play, undo restores it', async () => {
+  await page.getByRole('button', { name: 'Clear' }).click();
+  await expect.poll(chipNames).toEqual([]);
+  await expect(page.getByTestId('chord-title')).toBeHidden();
+  await expect(page.getByTestId('clock')).toHaveText('0:00.0 / 0:00.0');
+  await page.getByTestId('play').click();
+  await expect(page.getByTestId('play')).toHaveAttribute('aria-label', 'Play'); // stops at once: nothing to play
+  await expect(page.getByRole('button', { name: /^Settings/ })).toBeInViewport();
+  const box = (await page.getByRole('navigation').boundingBox())!;
+  expect(box.x + box.width).toBeGreaterThan(1200); // the toolbar stays at the right edge
+  await page.screenshot({ path: 'test-results/simple-cleared.png' });
+  await page.getByTestId('stage').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+Z');
+  await expect.poll(chipNames).toEqual(['C', 'G', 'Am', 'F']);
+});
+
 test('switches the note transition between smooth and instant', async () => {
   await page.getByTestId('stage').hover();
   await page.mouse.wheel(0, 300); // move past the first chord change

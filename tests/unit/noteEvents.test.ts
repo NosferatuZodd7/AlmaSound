@@ -36,6 +36,14 @@ describe('noteEvents', () => {
   });
 });
 
+describe('empty song', () => {
+  it('has no notes to play in either transition', () => {
+    const empty = buildSong('').song;
+    expect(noteEvents(empty, BPM, 'glide')).toEqual([]);
+    expect(noteEvents(empty, BPM, 'instant')).toEqual([]);
+  });
+});
+
 describe('instant transition', () => {
   it('jumps at the chord start instead of gliding', () => {
     const [a, b] = song.chords;

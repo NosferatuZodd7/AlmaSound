@@ -34,7 +34,8 @@ export function SimpleBuilder({ text, musicKey: key, onKey: setKey, onApply, onP
   const commit = async (next: string) => {
     if (applying.current) return;
     setDraft(next);
-    if (!progressionTokens(next).some((tk) => tk.valid)) return; // nothing to play yet: keep the current song
+    // Only unknown chords: keep the current song until there is something valid. Blank clears it.
+    if (next.trim() !== '' && !progressionTokens(next).some((tk) => tk.valid)) return;
     applying.current = true;
     try {
       if (!(await onApply(next))) setDraft(text);
@@ -126,7 +127,7 @@ export function SimpleBuilder({ text, musicKey: key, onKey: setKey, onApply, onP
           </span>
         ))}
         {tokens.length > 0 && (
-          <button type="button" className="btn btn-ghost chip-clear" onClick={() => setDraft('')}>
+          <button type="button" className="btn btn-ghost chip-clear" onClick={() => void commit('')}>
             {t('simple.clear')}
           </button>
         )}

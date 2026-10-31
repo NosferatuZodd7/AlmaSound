@@ -12,6 +12,17 @@ describe('ProjectStore', () => {
     expect(s.getState().song.chords[0].symbol.label).toBe('Am');
   });
 
+  it('blank text clears the song (asking first over hand edits) and undo brings it back', () => {
+    const s = new ProjectStore('C G');
+    expect(s.applyText('')).toBe('applied');
+    expect(s.getState().song.chords).toHaveLength(0);
+    expect(s.getState().song.totalBeats).toBe(0);
+    s.undo();
+    expect(s.getState().song.chords).toHaveLength(2);
+    s.editNote(0, 0, 70);
+    expect(s.applyText('  ')).toBe('needsConfirm');
+  });
+
   it('regenerates without asking when nothing was edited', () => {
     const s = new ProjectStore('C G');
     expect(s.applyText('Am F')).toBe('applied');
