@@ -68,6 +68,28 @@ Recorded here as the brief asks: when several paths were reasonable, the simples
 - **Shortcuts** are handled in one place, the renderer; the native menu only displays them. In a text field,
   Ctrl+Z undoes the text and Space types a space.
 - **Languages are bundled at build time** from `locales/*.json`.
-- **Settings** (language) live in `settings.json` in the app's user-data folder, written atomically.
+- **Settings** (language, theme) live in `settings.json` in the app's user-data folder, written atomically.
 - **Project file extension:** `.alma` (Phase 4).
-- **Fonts:** system UI font (Segoe UI on Windows), so nothing is downloaded at run time.
+- **Fonts:** SF Pro where the OS has it, otherwise Segoe UI Variable / Segoe UI on Windows; nothing is
+  downloaded or bundled (SF Pro's licence does not allow bundling it in a Windows app).
+
+## Design system: Liquid Glass
+
+The UI follows Apple's Liquid Glass language (iOS 26 / macOS Tahoe), in light and dark themes.
+
+- **Tokens** live at the top of `src/ui/styles.css`: typography, spacing, concentric radii, motion, glass
+  material (fill, blur, saturation, rim, sheen, shadows), content colours, background and the stage
+  colours. Dark values override them under `prefers-color-scheme: dark`.
+- **Theme** (System / Light / Dark, in Settings) is stored in `settings.json` and applied through Electron's
+  `nativeTheme`, which drives `prefers-color-scheme` and also themes native menus and dialogs. The canvas
+  reads its colours from the same tokens and redraws when the scheme changes.
+- **Material:** `.glass` = translucent fill + `backdrop-filter: blur() saturate()` + a gradient rim drawn
+  with a masked `::before` + a specular sheen `::after`. Without `backdrop-filter` it falls back to an opaque fill.
+- **Components:** `.glass` surfaces, `IconButton` (round buttons with a tooltip showing the shortcut),
+  `.btn-primary`, `.input`, `.select` (glass picker via Chromium's customizable select), `Segmented`
+  (native radios), `.badge`, `[data-tip]` tooltips, `.dialog` (enter/exit transitions).
+- **Layout:** the stage fills the window; the top bar, chord card and dock float above it, so the glass
+  blurs the moving lines behind it. The stage keeps notes clear of the panels (measured insets).
+- **Motion** is short and eased; everything honours `prefers-reduced-motion`.
+- Real refraction (SVG displacement in `backdrop-filter`) was left out: it would be recomputed every frame
+  over the animated stage, against the 60 fps goal.
