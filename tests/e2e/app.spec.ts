@@ -18,13 +18,15 @@ test.afterEach(() => {
   expect(errors, 'errors in the renderer console').toEqual([]);
 });
 
-test('starts in English with the stage drawn', async () => {
-  await expect(page.getByRole('textbox', { name: 'Progression' })).toBeVisible();
+test('starts in English, in the simple mode, with the stage drawn', async () => {
+  await expect(page.getByRole('radio', { name: 'Simple' })).toBeChecked();
+  await expect(page.getByRole('group', { name: 'Chords in this key' })).toBeVisible();
   await expect(page.getByTestId('stage')).toBeVisible();
   await page.screenshot({ path: 'test-results/stage-en.png' });
 });
 
-test('reports unknown chords without blocking the others', async () => {
+test('full mode: reports unknown chords without blocking the others', async () => {
+  await page.getByText('Full', { exact: true }).click();
   const input = page.getByRole('textbox', { name: 'Progression' });
   await input.fill('C G Xq Am F');
   await input.press('Enter');
@@ -99,7 +101,8 @@ test('switches between light and dark themes', async () => {
 });
 
 test('fits the minimum window size', async () => {
-  await page.setViewportSize({ width: 720, height: 480 });
+  await page.setViewportSize({ width: 720, height: 640 });
+  await page.getByText('Simples', { exact: true }).click();
   await page.waitForTimeout(300);
   await expect(page.getByTestId('play')).toBeInViewport();
   await expect(page.getByRole('button', { name: /Definições/ })).toBeInViewport();
