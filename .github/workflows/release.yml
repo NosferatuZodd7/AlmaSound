@@ -1,20 +1,35 @@
-name: Windows build
+name: Release
 
+# push to main      → testing build: prerelease v{package.json version}-dev.{run number}
+# push of a tag v*  → stable release vX.Y.Z (the tag must equal package.json's version)
+# manual run        → stable if a version is given, otherwise a testing build of the chosen branch
 on:
   push:
     branches: [main]
+    tags: ['v*']
+    paths-ignore: ['docs/**', '**/*.md']
   workflow_dispatch:
+    inputs:
+      version:
+        description: Stable version to publish (e.g. 0.2.0). Leave empty for a testing build.
+        required: false
+        default: ''
 
 permissions:
-  contents: write # to refresh the "dev" pre-release
+  contents: write
 
 concurrency:
-  group: windows-build
-  cancel-in-progress: true
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  build:
+  release:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
 
@@ -22,6 +37,35 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: Which version is this?
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          base=$(node -p "require('./package.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            kind=stable; want="${GITHUB_REF_NAME#v}"
+          elif [[ -n "$INPUT_VERSION" ]]; then
+            kind=stable; want="${INPUT_VERSION#v}"
+          else
+            kind=testing
+          fi
+          if [[ $kind == stable ]]; then
+            if [[ "$want" != "$base" ]]; then
+              echo "::error::Version $want does not match package.json ($base). Bump package.json first."
+              exit 1
+            fi
+            version="$base"
+          else
+            version="$base-dev.$GITHUB_RUN_NUMBER"
+            if gh release view "v$base" >/dev/null 2>&1; then
+              echo "::warning::v$base is already a stable release: bump the version in package.json, or testers will not see this build."
+            fi
+          fi
+          echo "Building $kind $version"
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - run: npm ci
       - run: npm run typecheck
@@ -34,12 +78,21 @@ jobs:
         run: npx playwright test
 
       - name: Package installer and portable exe
-        run: npx electron-builder --win --x64 --publish never
+        run: >
+          npx electron-builder --win --x64 --publish never
+          -c.extraMetadata.version=${{ steps.version.outputs.version }}
+          -c.extraMetadata.almasound.updateRepository=${{ github.repository }}
+
+      - name: SHA-256 per file
+        working-directory: dist
+        run: for f in *.exe; do sha256sum "$f" > "$f.sha256"; cat "$f.sha256"; done
 
       - uses: actions/upload-artifact@v4
         with:
-          name: AlmaSound-windows
-          path: dist/*.exe
+          name: AlmaSound-${{ steps.version.outputs.version }}-windows
+          path: |
+            dist/*.exe
+            dist/*.sha256
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
@@ -49,13 +102,46 @@ jobs:
           path: test-results/
           if-no-files-found: ignore
 
-      - name: Refresh the "dev" pre-release
-        if: github.ref == 'refs/heads/main'
-        shell: bash
+      - name: Tidy up old releases
         env:
-          GH_TOKEN: ${{ github.token }}
+          KIND: ${{ steps.version.outputs.kind }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release delete dev --yes --cleanup-tag || true
-          gh release create dev dist/*.exe --prerelease --target "$GITHUB_SHA" \
-            --title "AlmaSound dev build" \
-            --notes "Automatic build of main at $GITHUB_SHA. Unsigned: Windows SmartScreen will warn (More info → Run anyway)."
+          gh release delete dev --yes --cleanup-tag 2>/dev/null || true # the old rolling "dev" build
+          tags=$(gh release list --limit 200 --json tagName --jq '.[].tagName')
+          dev_tags=$(grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-dev\.[0-9]+$' <<<"$tags" || true)
+          if [[ $KIND == testing ]]; then
+            # shortcut: keeps the 4 newest by run number (plus the new one), not "ancestors of this commit"
+            old=$(sed -E 's/.*-dev\.([0-9]+)$/\1 &/' <<<"$dev_tags" | sort -rn | cut -d' ' -f2 | tail -n +5)
+          else
+            old=$(while read -r t; do
+              [[ -z "$t" ]] && continue
+              b=${t#v}; b=${b%-dev.*}
+              [[ $(printf '%s\n%s\n' "$b" "$VERSION" | sort -V | head -1) == "$b" ]] && echo "$t"
+            done <<<"$dev_tags")
+            gh release delete "v$VERSION" --yes --cleanup-tag 2>/dev/null || true # republish: the tag moves to this commit
+          fi
+          for t in $old; do echo "Deleting $t"; gh release delete "$t" --yes --cleanup-tag; done
+
+      - name: Publish release
+        env:
+          KIND: ${{ steps.version.outputs.kind }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          {
+            if [[ $KIND == testing ]]; then echo "**Testing build** of \`$GITHUB_SHA\` (channel *Testing* in the app)."; else echo "**Stable release.**"; fi
+            echo
+            echo "### Download"
+            echo "- \`AlmaSound-$VERSION-setup.exe\`: installer (English / Português), no administrator rights needed."
+            echo "- \`AlmaSound-$VERSION-portable.exe\`: runs without installing."
+            echo
+            echo "Not code-signed yet: Windows SmartScreen warns on first run (*More info → Run anyway*)."
+            echo "Installed copies find new versions in **Settings → Updates**."
+            echo "Problems: open an issue in this repository."
+            echo
+            echo "### SHA-256"
+            for f in dist/*.sha256; do read -r hash name < "$f"; echo "\`$hash\`  $name"; done
+          } > release-body.md
+          flags=(); [[ $KIND == testing ]] && flags+=(--prerelease)
+          gh release create "v$VERSION" dist/*.exe dist/*.sha256 "${flags[@]}" \
+            --target "$GITHUB_SHA" --title "AlmaSound v$VERSION" --notes-file release-body.md --generate-notes

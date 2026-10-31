@@ -20,8 +20,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   multiLanguageInstaller: true
   installerLanguages: [en_US, pt_PT]
-  artifactName: ${productName}-Setup-${version}.${ext}
+  artifactName: ${productName}-${version}-setup.${ext}
 portable:
-  artifactName: ${productName}-Portable-${version}.${ext}
+  artifactName: ${productName}-${version}-portable.${ext}
 linux:
   target: dir # only used to smoke-test packaging on Linux
