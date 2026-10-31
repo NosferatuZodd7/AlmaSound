@@ -70,7 +70,8 @@
     "playPause": "Tocar / pausa",
     "restart": "Voltar ao início",
     "help": "Ajuda",
-    "checkUpdates": "Procurar atualizações…"
+    "checkUpdates": "Procurar atualizações…",
+    "diagnostics": "Diagnóstico…"
   },
   "keys": {
     "space": "Espaço",
@@ -145,5 +146,36 @@
     "glide": "Contínua",
     "instant": "Instantânea",
     "short": "Transição"
+  },
+  "diagnostics": {
+    "title": "Diagnóstico",
+    "hint": "O relatório tem as versões, as definições, as últimas tentativas e as últimas linhas do registo, sem segredos. Junta-o ao teu relato do problema.",
+    "filter": "Filtrar o registo",
+    "filterPlaceholder": "Filtrar, ex.: Audio, Updates, ERROR",
+    "problemsOnly": "Só erros e avisos",
+    "follow": "Seguir o fim",
+    "debug": "Registo detalhado (mais informação)",
+    "log": "Registo",
+    "logFile": "Ficheiro de registo: {{path}}",
+    "noLogFile": "Não foi possível abrir um ficheiro de registo; as linhas acima ficam só em memória.",
+    "copy": "Copiar relatório",
+    "saveAs": "Guardar em…",
+    "saveDesktop": "Guardar no ambiente de trabalho",
+    "close": "Fechar",
+    "copied": "Relatório copiado para a área de transferência.",
+    "saved": "Guardado em {{path}}",
+    "saveFailed": "Não foi possível guardar o relatório: {{error}}. Experimenta “Guardar em…” ou “Copiar relatório”."
+  },
+  "fatal": {
+    "errorTitle": "O AlmaSound encontrou um erro inesperado",
+    "logAt": "Registo: {{path}}",
+    "loadTitle": "Não foi possível carregar a janela",
+    "crashTitle": "A janela do AlmaSound fechou inesperadamente",
+    "crashDetail": "Podes recarregá-la. Para relatar o problema, abre Ajuda → Diagnóstico e guarda o relatório (registo: {{path}}).",
+    "reload": "Recarregar",
+    "quit": "Sair",
+    "noWindowTitle": "A janela não apareceu",
+    "noWindow": "O AlmaSound arrancou mas não conseguiu desenhar a janela. Fecha-o e abre-o de novo: vai usar desenho por software (também o podes abrir com --software).",
+    "noWindowSafe": "O AlmaSound não conseguiu desenhar a janela, nem com desenho por software. Corre o diagnostics.bat (na pasta do AlmaSound ou no menu Iniciar) e envia o diagnostics.txt."
   }
 }

@@ -12,6 +12,7 @@ import { IconButton } from './components/IconButton';
 import { ProgressionEditor } from './components/ProgressionEditor';
 import { Segmented } from './components/Segmented';
 import { SettingsDialog } from './components/SettingsDialog';
+import { DiagnosticsDialog } from './components/DiagnosticsDialog';
 import { UpdateDialog } from './components/UpdateDialog';
 import { UpdatesSection } from './components/UpdatesSection';
 import { Transport } from './components/Transport';
@@ -37,6 +38,8 @@ export function App({ store, engine, initialSettings, api }: Props) {
   const [updateSettings, setUpdateSettings] = useState<UpdateSettings>(initialSettings);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
   const [updateOpen, setUpdateOpen] = useState(false);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [debugLogging, setDebugLogging] = useState(initialSettings.debugLogging);
   const [chordIndex, setChordIndex] = useState(0);
   const topbar = useRef<HTMLElement>(null);
   const dock = useRef<HTMLElement>(null);
@@ -104,6 +107,8 @@ export function App({ store, engine, initialSettings, api }: Props) {
       switch (action) {
         case 'settings':
           return setSettingsOpen(true);
+        case 'diagnostics':
+          return setDiagnosticsOpen(true);
         case 'checkUpdates':
           setSettingsOpen(true);
           return void api?.checkForUpdates();
@@ -141,6 +146,7 @@ export function App({ store, engine, initialSettings, api }: Props) {
       let action: MenuAction | null = null;
       if (e.ctrlKey || e.metaKey) {
         if (k === ',') action = 'settings';
+        else if (k === 'l') action = 'diagnostics';
         else if (k === '=' || k === '+') action = 'zoomIn';
         else if (k === '-') action = 'zoomOut';
         else if (k === '0') action = 'zoomReset';
@@ -246,6 +252,18 @@ export function App({ store, engine, initialSettings, api }: Props) {
           )
         }
       />
+      {api && diagnosticsOpen && (
+        <DiagnosticsDialog
+          api={api}
+          engine={engine}
+          debugLogging={debugLogging}
+          onDebugLogging={(on) => {
+            setDebugLogging(on);
+            void api.setDebugLogging(on);
+          }}
+          onClose={() => setDiagnosticsOpen(false)}
+        />
+      )}
       {api && updateStatus && (
         <UpdateDialog
           open={updateOpen && updateStatus.release !== null}

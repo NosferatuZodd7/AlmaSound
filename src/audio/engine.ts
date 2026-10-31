@@ -2,6 +2,7 @@ import type { Song } from '../core/song';
 import { secondsPerBeat, songDuration, type Transition } from '../core/timeline';
 import { noteEvents, noteKey, pitchOfEvent, type NoteEvent } from './noteEvents';
 import { playSynthPiano, type SoundingNote } from './instruments/synthPiano';
+import { log } from '../log';
 
 const LOOKAHEAD = 0.15; // seconds scheduled ahead of the audio clock
 const TICK_MS = 25;
@@ -58,6 +59,7 @@ export class AudioEngine {
 
   play(): void {
     if (this._playing) return;
+    log('debug', `Audio: play from ${this._pausedAt.toFixed(2)} s`);
     const ctx = this._ensureContext();
     void ctx.resume();
     if (this._pausedAt >= this.duration) this._pausedAt = 0;
@@ -134,6 +136,25 @@ export class AudioEngine {
     });
   }
 
+  /** Facts for the diagnostics report: where the sound could get lost. */
+  async probe(): Promise<string[]> {
+    const ctx = this._ctx;
+    return [
+      ctx ? `Context: ${ctx.state}, ${ctx.sampleRate} Hz, base latency ${ms(ctx.baseLatency)}, output latency ${ms(ctx.outputLatency)}` : 'Context: not created yet (nothing played)',
+      `Output devices: ${await this._outputCount()}`,
+      `Transport: ${this._playing ? 'playing' : 'stopped'} at ${this.position().toFixed(2)} s of ${this.duration.toFixed(2)} s`,
+      `Song: ${this._song.chords.length} chords, ${this._bpm} BPM, transition ${this._transition}, ${this._events.length} note events, ${this._sounding.size} sounding`,
+    ];
+  }
+
+  private async _outputCount(): Promise<number | string> {
+    try {
+      return (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audiooutput').length;
+    } catch {
+      return 'unknown';
+    }
+  }
+
   dispose(): void {
     this._halt();
     void this._ctx?.close();
@@ -142,7 +163,13 @@ export class AudioEngine {
 
   private _ensureContext(): AudioContext {
     if (!this._ctx) {
-      this._ctx = new AudioContext({ latencyHint: 'interactive' });
+      const ctx = (this._ctx = new AudioContext({ latencyHint: 'interactive' }));
+      log('info', `Audio: context created, ${ctx.sampleRate} Hz, base latency ${ms(ctx.baseLatency)}, state ${ctx.state}`);
+      // OS-delivered events, logged as they arrive: if one never shows up, the OS did not send it.
+      ctx.onstatechange = () => log('info', `Audio: context ${ctx.state}, output latency ${ms(ctx.outputLatency)}`);
+      navigator.mediaDevices?.addEventListener('devicechange', () => {
+        void this._outputCount().then((n) => log('info', `Audio: output devices changed (${n} now)`));
+      });
       this._master = this._ctx.createGain();
       this._master.gain.value = 0.9;
       this._master.connect(this._ctx.destination);
@@ -217,3 +244,5 @@ export class AudioEngine {
     for (const l of this._listeners) l();
   }
 }
+
+const ms = (seconds: number | undefined): string => (seconds === undefined ? '?' : `${Math.round(seconds * 1000)} ms`);

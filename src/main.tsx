@@ -11,7 +11,7 @@ async function start(): Promise<void> {
   const api = window.almasound;
   const settings = api
     ? await api.getSettings()
-    : { language: null, theme: 'system' as const, checkForUpdates: false, updateChannel: 'stable' as const, updateRepository: '', systemLanguage: navigator.language };
+    : { language: null, theme: 'system' as const, checkForUpdates: false, debugLogging: false, updateChannel: 'stable' as const, updateRepository: '', systemLanguage: navigator.language };
   const i18n = createI18n(resolveLanguage(settings.language ?? settings.systemLanguage));
   document.documentElement.lang = i18n.language;
 
@@ -31,6 +31,8 @@ async function start(): Promise<void> {
       </I18nextProvider>
     </StrictMode>,
   );
+  // Two frames: the first paint has really happened, so the startup guard can stand down.
+  requestAnimationFrame(() => requestAnimationFrame(() => api?.firstFrame()));
 }
 
 void start();

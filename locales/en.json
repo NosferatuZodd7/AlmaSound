@@ -70,7 +70,8 @@
     "playPause": "Play / pause",
     "restart": "Back to start",
     "help": "Help",
-    "checkUpdates": "Check for updates…"
+    "checkUpdates": "Check for updates…",
+    "diagnostics": "Diagnostics…"
   },
   "keys": {
     "space": "Space",
@@ -145,5 +146,36 @@
     "glide": "Smooth",
     "instant": "Instant",
     "short": "Transition"
+  },
+  "diagnostics": {
+    "title": "Diagnostics",
+    "hint": "The report holds versions, settings, the last attempts and the last log lines, with secrets removed. Attach it to your bug report.",
+    "filter": "Filter the log",
+    "filterPlaceholder": "Filter, e.g. Audio, Updates, ERROR",
+    "problemsOnly": "Errors and warnings only",
+    "follow": "Follow the end",
+    "debug": "Debug logging (more detail)",
+    "log": "Log",
+    "logFile": "Log file: {{path}}",
+    "noLogFile": "No log file could be opened; the lines above are kept in memory only.",
+    "copy": "Copy report",
+    "saveAs": "Save to…",
+    "saveDesktop": "Save to desktop",
+    "close": "Close",
+    "copied": "Report copied to the clipboard.",
+    "saved": "Saved to {{path}}",
+    "saveFailed": "Could not save the report: {{error}}. Try “Save to…” or “Copy report”."
+  },
+  "fatal": {
+    "errorTitle": "AlmaSound hit an unexpected error",
+    "logAt": "Log: {{path}}",
+    "loadTitle": "The window could not be loaded",
+    "crashTitle": "The AlmaSound window closed unexpectedly",
+    "crashDetail": "You can reload it. To report the problem, open Help → Diagnostics and save the report (log: {{path}}).",
+    "reload": "Reload",
+    "quit": "Quit",
+    "noWindowTitle": "The window did not appear",
+    "noWindow": "AlmaSound started but could not draw its window. Close it and start it again: it will use software rendering (you can also start it with --software).",
+    "noWindowSafe": "AlmaSound could not draw its window, even with software rendering. Run diagnostics.bat (in the AlmaSound folder or the Start menu) and send diagnostics.txt."
   }
 }
