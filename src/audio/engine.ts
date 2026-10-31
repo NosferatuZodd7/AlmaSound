@@ -1,12 +1,13 @@
 import type { Song } from '../core/song';
-import { secondsPerBeat, songDuration } from '../core/timeline';
-import { noteEvents, noteKey, type NoteEvent } from './noteEvents';
+import { secondsPerBeat, songDuration, type Transition } from '../core/timeline';
+import { noteEvents, noteKey, pitchOfEvent, type NoteEvent } from './noteEvents';
 import { playSynthPiano, type SoundingNote } from './instruments/synthPiano';
 
 const LOOKAHEAD = 0.15; // seconds scheduled ahead of the audio clock
 const TICK_MS = 25;
 const START_DELAY = 0.05;
 const PREVIEW_SECONDS = 0.5;
+const CURVE_POINTS = 32; // samples per pitch glide (the cosine shape survives a mid-glide start)
 
 /**
  * Transport with a lookahead scheduler: a timer places notes on the audio clock slightly ahead
@@ -18,6 +19,7 @@ export class AudioEngine {
   private _master: GainNode | null = null;
   private _song: Song;
   private _bpm: number;
+  private _transition: Transition;
   private _events: NoteEvent[];
   private _cursor = 0;
   private _playing = false;
@@ -28,10 +30,11 @@ export class AudioEngine {
   private _timer: ReturnType<typeof setInterval> | null = null;
   private _listeners = new Set<() => void>();
 
-  constructor(song: Song, bpm: number) {
+  constructor(song: Song, bpm: number, transition: Transition = 'glide') {
     this._song = song;
     this._bpm = bpm;
-    this._events = noteEvents(song, bpm);
+    this._transition = transition;
+    this._events = noteEvents(song, bpm, transition);
   }
 
   get playing(): boolean {
@@ -88,19 +91,21 @@ export class AudioEngine {
   }
 
   /** Swaps in an edited song. While playing, unchanged notes keep sounding; changed ones are replaced. */
-  setSong(song: Song, bpm: number): void {
+  setSong(song: Song, bpm: number, transition: Transition = this._transition): void {
     const tempoChanged = bpm !== this._bpm;
+    const restart = tempoChanged || transition !== this._transition;
     const beatNow = (this._playing ? this._songClock() : this._pausedAt) / secondsPerBeat(this._bpm);
     this._song = song;
     this._bpm = bpm;
-    this._events = noteEvents(song, bpm);
+    this._transition = transition;
+    this._events = noteEvents(song, bpm, transition);
     const atSameBeat = Math.min(this.duration, beatNow * secondsPerBeat(bpm));
     if (!this._playing) {
       this._pausedAt = tempoChanged ? atSameBeat : Math.min(this._pausedAt, this.duration);
       this._emit();
       return;
     }
-    if (tempoChanged) {
+    if (restart) {
       this._stopAll();
       this._startAt(atSameBeat);
       return;
@@ -167,7 +172,16 @@ export class AudioEngine {
     const key = noteKey(e);
     if (this._sounding.has(key)) return;
     const start = Math.max(e.time, fromSongTime);
-    const note = playSynthPiano(this._ctx!, this._master!, e.midi, e.voice, this._origin + start, e.time + e.duration - start);
+    const o = this._origin;
+    const pitchCurves = e.bends
+      .filter((b) => b.end > start)
+      .map((b) => {
+        const s = Math.max(b.start, start);
+        const midi = Array.from({ length: CURVE_POINTS }, (_, k) => pitchOfEvent(e, s + ((b.end - s) * k) / (CURVE_POINTS - 1)));
+        return { when: o + s, duration: b.end - s, midi };
+      });
+    const accents = e.accents.filter((a) => a > start).map((a) => o + a);
+    const note = playSynthPiano(this._ctx!, this._master!, pitchOfEvent(e, start), e.voice, o + start, e.time + e.duration - start, { pitchCurves, accents });
     this._sounding.set(key, note);
   }
 

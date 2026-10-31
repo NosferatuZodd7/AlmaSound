@@ -1,5 +1,5 @@
 import { EDIT_RANGE, type Song } from '../../core/song';
-import { chordIndexAt, cosineEase, glideSeconds, pitchAt, secondsPerBeat } from '../../core/timeline';
+import { chordIndexAt, cosineEase, glideSeconds, pitchAt, secondsPerBeat, type Transition } from '../../core/timeline';
 import { noteName } from '../../core/theory/notes';
 import { timeOfX, xOfTime, yOfMidi, type StageGeometry } from './geometry';
 
@@ -52,7 +52,16 @@ export interface DragView {
  * Draws one frame: octave bands, chord chips, voice lines (solid behind the playhead, dotted
  * ahead of it), the glass playhead lens with one orb per voice, and the note names.
  */
-export function drawStage(c: CanvasRenderingContext2D, g: StageGeometry, theme: StageTheme, song: Song, bpm: number, now: number, drag: DragView | null): void {
+export function drawStage(
+  c: CanvasRenderingContext2D,
+  g: StageGeometry,
+  theme: StageTheme,
+  song: Song,
+  bpm: number,
+  transition: Transition,
+  now: number,
+  drag: DragView | null,
+): void {
   c.clearRect(0, 0, g.width, g.height);
   drawGrid(c, g, theme);
   if (song.chords.length === 0) return;
@@ -81,7 +90,7 @@ export function drawStage(c: CanvasRenderingContext2D, g: StageGeometry, theme: 
 
   // Voice lines, bass first so the top voice sits on top
   for (let v = VOICE_COUNT - 1; v >= 0; v--) {
-    const path = voicePath(g, song, spb, now, v, first, last);
+    const path = voicePath(g, song, spb, transition, now, v, first, last);
     const color = theme.voices[v];
     c.lineCap = 'round';
     c.lineJoin = 'round';
@@ -120,7 +129,7 @@ export function drawStage(c: CanvasRenderingContext2D, g: StageGeometry, theme: 
   let lastY = -99;
   let flip = false;
   for (let v = 0; v < VOICE_COUNT; v++) {
-    const y = yOfMidi(g, pitchAt(song, bpm, v, tNow));
+    const y = yOfMidi(g, pitchAt(song, bpm, v, tNow, transition));
     orb(c, g.playX, y, theme.voices[v]);
     flip = Math.abs(y - lastY) < 20 ? !flip : false;
     lastY = y;
@@ -135,8 +144,8 @@ export function drawStage(c: CanvasRenderingContext2D, g: StageGeometry, theme: 
   c.textBaseline = 'alphabetic';
 }
 
-/** Same shape as timeline.pitchAt: held note, then a cosine glide that lands on the next chord. */
-function voicePath(g: StageGeometry, song: Song, spb: number, now: number, v: number, first: number, last: number): Path2D {
+/** Same shape as timeline.pitchAt: held note, then a cosine glide (or a step) onto the next chord. */
+function voicePath(g: StageGeometry, song: Song, spb: number, transition: Transition, now: number, v: number, first: number, last: number): Path2D {
   const p = new Path2D();
   for (let i = first; i <= last; i++) {
     const ch = song.chords[i];
@@ -146,8 +155,8 @@ function voicePath(g: StageGeometry, song: Song, spb: number, now: number, v: nu
     const y = yOfMidi(g, ch.notes[v]);
     if (i === first) p.moveTo(xs, y);
     else p.lineTo(xs, y);
-    if (!next) {
-      p.lineTo(xe, y);
+    if (!next || transition === 'instant') {
+      p.lineTo(xe, y); // the next chord's moveTo/lineTo draws the vertical step
       continue;
     }
     const xg = xe - glideSeconds(ch.beats * spb) * g.pps;

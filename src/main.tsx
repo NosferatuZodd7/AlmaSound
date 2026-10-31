@@ -16,11 +16,11 @@ async function start(): Promise<void> {
   document.documentElement.lang = i18n.language;
 
   const store = new ProjectStore();
-  const engine = new AudioEngine(store.getState().song, store.getState().bpm);
+  const engine = new AudioEngine(store.getState().song, store.getState().bpm, store.getState().transition);
   let last = store.getState();
   store.subscribe(() => {
     const s = store.getState();
-    if (s.song !== last.song || s.bpm !== last.bpm) engine.setSong(s.song, s.bpm);
+    if (s.song !== last.song || s.bpm !== last.bpm || s.transition !== last.transition) engine.setSong(s.song, s.bpm, s.transition);
     last = s;
   });
 

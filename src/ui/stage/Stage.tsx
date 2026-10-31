@@ -49,7 +49,7 @@ export function Stage({ store, engine, insets, onChord }: Props) {
     const frame = () => {
       const s = store.getState();
       const now = engine.position();
-      drawStage(c, geometry(), theme, s.song, s.bpm, now, drag?.kind === 'note' ? drag : null);
+      drawStage(c, geometry(), theme, s.song, s.bpm, s.transition, now, drag?.kind === 'note' ? drag : null);
       const chord = chordIndexAt(s.song, s.bpm, Math.max(0, now));
       if (chord !== shownChord) onChord((shownChord = chord));
       raf = requestAnimationFrame(frame);

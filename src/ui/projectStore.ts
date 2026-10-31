@@ -1,6 +1,6 @@
 import { History } from '../core/history';
 import { buildSong, hasEdits, setNote, type Song } from '../core/song';
-import { BPM_RANGE, clampBpm } from '../core/timeline';
+import { BPM_RANGE, clampBpm, type Transition } from '../core/timeline';
 
 export const DEFAULT_PROGRESSION =
   'Am Dm7 G7 Cmaj7 Fmaj7 Bm7b5:2 E7sus4:1 E7:1 Am Am/G Fmaj7 E/G# Am C/G F Dm Esus4:2 E:2 Am F C G Am Dm/F E7sus4:2 E7:2 A:8';
@@ -20,6 +20,8 @@ export interface ProjectState extends Snapshot {
   /** Tokens to report: from the last text tried. */
   problems: string[];
   bpm: number;
+  /** How voices move between chords (sound and lines). */
+  transition: Transition;
   zoom: number;
   canUndo: boolean;
   canRedo: boolean;
@@ -38,7 +40,7 @@ export class ProjectStore {
     const built = buildSong(text);
     const snapshot: Snapshot = { text, song: built.song, invalid: built.invalid };
     this._history = new History(snapshot);
-    this._state = { ...snapshot, empty: false, problems: built.invalid, bpm: clampBpm(bpm), zoom: 1, canUndo: false, canRedo: false };
+    this._state = { ...snapshot, empty: false, problems: built.invalid, bpm: clampBpm(bpm), transition: 'glide', zoom: 1, canUndo: false, canRedo: false };
   }
 
   readonly getState = (): ProjectState => this._state;
@@ -103,6 +105,10 @@ export class ProjectStore {
   /** Tempo only changes timing; hand edits are kept. */
   setBpm(bpm: number): void {
     this._set({ bpm: clampBpm(bpm) });
+  }
+
+  setTransition(transition: Transition): void {
+    this._set({ transition });
   }
 
   setZoom(zoom: number): void {

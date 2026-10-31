@@ -1,6 +1,9 @@
 import type { Song } from './song';
 
 export const BPM_RANGE = { min: 40, max: 220, default: 90 } as const;
+
+/** How a voice moves to its next note: a continuous cosine glide, or an instant jump at the chord change. */
+export type Transition = 'glide' | 'instant';
 export const BEATS_PER_BAR = 4; // 4/4 only for now
 
 export const clampBpm = (bpm: number): number =>
@@ -30,14 +33,14 @@ export function chordIndexAt(song: Song, bpm: number, seconds: number): number {
 }
 
 /**
- * Continuous pitch of `voice` at `seconds`: held during the chord, then a cosine glide that
- * lands exactly on the next chord's start.
+ * Pitch of `voice` at `seconds`: held during the chord, then (glide) a cosine glide that lands
+ * exactly on the next chord's start, or (instant) a jump at that start.
  */
-export function pitchAt(song: Song, bpm: number, voice: number, seconds: number): number {
+export function pitchAt(song: Song, bpm: number, voice: number, seconds: number, transition: Transition = 'glide'): number {
   const i = chordIndexAt(song, bpm, seconds);
   const chord = song.chords[i];
   const next = song.chords[i + 1];
-  if (!next) return chord.notes[voice];
+  if (!next || transition === 'instant') return chord.notes[voice];
   const spb = secondsPerBeat(bpm);
   const end = next.startBeat * spb;
   const glide = glideSeconds(chord.beats * spb);
